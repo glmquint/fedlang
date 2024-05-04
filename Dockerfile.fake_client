@@ -1,0 +1,18 @@
+# To build the image:
+#   docker build -f Dockerfile.fake_client -t fedlang/fake_client .
+# To run the image:
+#   docker run --env FL_COOKIE=cookie_123456789 --env FL_SERVER_MBOX=mboxDirector --env FL_SERVER_NAME=director@10.0.0.2 --env FL_CLIENT_ID_START=0 --env FL_CLIENT_ID_END=100 -d -t --net fedlang_network --name fedlang-fake-clients fedlang/fake_client
+# To connect to a running container:
+#   docker exec -it fedlang-fake_clients /bin/bash
+
+FROM erlang:25.3.2.6-slim
+
+RUN apt-get update
+
+WORKDIR /app
+
+COPY ./src/erlang_client ./src/erlang_client
+
+RUN erlc src/erlang_client/fake_client.erl
+
+CMD ["sh", "src/erlang_client/fake_clients.sh"]

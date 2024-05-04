@@ -1,0 +1,50 @@
+# To build the image:
+#   docker build -f Dockerfile.client -t fedlang/client .
+# To run the image:
+#   docker run --env FL_COOKIE=cookie_123456789 --env FL_SERVER_MBOX=mboxDirector --env FL_SERVER_NAME=director@10.0.0.2 --env FL_CLIENT_ID_START=0 --env FL_CLIENT_ID_END=100 -d -t --net fedlang_network --name fedlang-client1 fedlang/client
+# To connect to a running container:
+#   docker exec -it fedlang-client1 /bin/bash
+
+FROM erlang:25.3.2.6-slim
+
+WORKDIR /app
+COPY ./requirements.txt ./requirements.txt
+
+RUN apt-get update \
+	&& apt-get -y install python3.9 unzip zip procps build-essential python3-pip net-tools curl \
+	&& apt-get install -y git
+
+RUN curl https://sh.rustup.rs -sSf | bash -s -- -y \
+	&& . "$HOME/.cargo/env" \
+	&& pip3 install --upgrade pip \
+	&& pip install --upgrade pip \
+	&& pip3 install pyopenssl setuptools-rust semantic_version \
+	&& pip3 install -r requirements.txt \
+	&& update-alternatives --install /usr/bin/python python /usr/bin/python3.9 1 \
+	&& mkdir logs \
+	&& mkdir stats
+
+COPY ./Pyrlang ./Pyrlang
+COPY ./Term ./Term
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /app/Term
+
+RUN pip3 install .
+
+WORKDIR /app/Pyrlang
+
+RUN pip3 install .
+
+WORKDIR /app
+
+COPY ./src/erlang_client ./src/erlang_client
+COPY ./src/python_client ./src/python_client
+COPY ./src/python_common ./src/python_common
+COPY ./datasets ./datasets
+COPY ./configs ./configs
+
+RUN erlc src/erlang_client/*.erl
+
+CMD ["bash", "src/erlang_client/client.sh"]
