@@ -1,3 +1,5 @@
+% Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+% SPDX-License-Identifier: Apache-2.0
 -module(stats_node).
 -export([run_and_monitor/3]).
 

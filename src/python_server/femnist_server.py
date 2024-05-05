@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Apr. 27 9:34 a.m. 2024
-
-@author: José Luis Corcuera Bárcena
-"""
+# Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+# SPDX-License-Identifier: Apache-2.0
 
 import asyncio
 import pickle

@@ -1,3 +1,5 @@
+% Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+% SPDX-License-Identifier: Apache-2.0
 -module(fake_client).
 -author('José Luis Corcuera Bárcena <joseluis.corcuera@phd.unipi.it>').
 -export([main/0]).

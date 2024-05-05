@@ -1,3 +1,6 @@
+# Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import traceback
 import time

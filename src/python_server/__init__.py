@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sep 24 10:22 a.m. 2023
-
-@author: José Luis Corcuera Bárcena
-"""
+# Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+# SPDX-License-Identifier: Apache-2.0

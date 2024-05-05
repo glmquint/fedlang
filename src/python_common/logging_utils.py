@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sep 03 4:33 a.m. 2023
+# Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+# SPDX-License-Identifier: Apache-2.0
 
-@author: jose 
-"""
 import os
 import sys
 import logging

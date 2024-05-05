@@ -1,3 +1,5 @@
+# Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
+# SPDX-License-Identifier: Apache-2.0
 # To build the image:
 #   docker build -f Dockerfile.fake_client -t fedlang/fake_client .
 # To run the image:
