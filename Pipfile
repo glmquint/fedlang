@@ -11,6 +11,8 @@ scipy = "*"
 scikit-learn = "*"
 psutil = "*"
 tensorflow = "==2.11.1"
+pandas = "*"
+numba = "*"
 
 [dev-packages]
 

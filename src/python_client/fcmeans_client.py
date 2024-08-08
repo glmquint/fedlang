@@ -39,11 +39,11 @@ def load_experiment_info(num_clients, target_feature, dataset_name = None):
     size = int(math.ceil(df.shape[0] / num_clients))
     logger_info(f'dataset chunk size = {size}')
     y_true = df[str(target_feature)]
-    df_X = df.drop(target_feature, axis=1)
+    df_X = df.drop(str(target_feature), axis=1)
     random_samples = np.random.randint(df.shape[0], size=size)
     values = df_X.values[random_samples, :]
     y_true = y_true.values[random_samples]
-    logger_info(f'dataset chunk size = {size}, len(values) = {len(values)}')
+    logger_info(f'dataset chunk size = {size}, X.shape = {df_X.shape}, y.shape = {y_true.shape}')
     return values, y_true, target_feature
 
 
@@ -56,7 +56,7 @@ class FCMeansClientProcess(FedLangProcess):
         try:
             experiment_config = json.loads(json_str_config)
             fl_utils.logger.info(f"experiment = {experiment}, experiment_config = {experiment_config}")
-            self.factor_lambda = experiment_config.get("lambdaFactor")
+            self.factor_lambda = float(experiment_config.get("lambdaFactor"))
             self.num_clients = experiment_config.get("numClients")
             self.target_feature = experiment_config.get("targetFeature")
             dataset_name = experiment_config.get("datasetName")
@@ -94,7 +94,6 @@ class FCMeansClientProcess(FedLangProcess):
 
                 for c in range(num_clusters):
                     vc = centers[c]
-
                     numer[c] = (distance_fn(x, vc)) ** ((2) / (factor_lambda - 1))
                     if numer[c] == 0:
                         numer[c] = np.finfo(np.float).eps
@@ -120,7 +119,6 @@ class FCMeansClientProcess(FedLangProcess):
 
                     numer[c] = (distance_fn(x, vc)) ** ((2) / (factor_lambda - 1))
                     if numer[c] == 0:
-                        # print('ENTROOOOOOOOOOOOOOOOOOOOOOOOO')
                         numer[c] = np.finfo(np.float64).eps
                     denom = denom + (1 / numer[c])
 
