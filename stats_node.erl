@@ -1,7 +1,9 @@
 % Copyright (C) 2024 AI&RD Research Group, Department of Information Engineering, University of Pisa
 % SPDX-License-Identifier: Apache-2.0
 -module(stats_node).
--export([run_and_monitor/3, test/0]).
+-export([run_and_monitor/3, 
+        test0/0,
+        test1/0]).
 
 run_and_monitor(DirectorMBoxParam, DirectorNameParam, StartStrRunMessage) ->
     DirectorMBox = list_to_atom(DirectorMBoxParam),
@@ -19,12 +21,37 @@ receive_stats() ->
     end,
     receive_stats().
 
-test() ->
+test0() ->
     run_and_monitor(
       "mboxDirector", 
       "director@127.0.0.1", 
       {
        "fcmeans", python, 1, 1, 2, "max_number_rounds", none, 10, 
+        "{
+            \"algorithm\": \"fcmeans\",  
+            \"clientSelectionStrategy\": 1,  
+            \"minNumberClients\": 2,  
+            \"stopCondition\": null,  
+            \"stopConditionThreshold\": null,  
+            \"maxNumberOfRounds\": 10,  
+            \"parameters\": 
+            {     
+                \"numFeatures\": 16,     
+                \"numClusters\": 10,     
+                \"targetFeature\": 16,     
+                \"lambdaFactor\": 2,     
+                \"seed\": 10  
+            }
+        }"
+      }
+    ).
+
+test1() ->
+    run_and_monitor(
+      "mboxDirector", 
+      "director@127.0.0.1", 
+      {
+       "fcmeans", go, 1, 1, 2, "max_number_rounds", none, 10, 
         "{
             \"algorithm\": \"fcmeans\",  
             \"clientSelectionStrategy\": 1,  

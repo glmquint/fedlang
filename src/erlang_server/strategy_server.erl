@@ -66,14 +66,20 @@ create_python_client(ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerM
     S = io_lib:format("python3 -u ~s/~s.py ~s ~s ~s ~s ~s",[PythonScriptDir, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
     spawn(fun() -> os:cmd(S) end).
 
+create_go_client(ExperimentID, GoModule, GoNodeName, WorkerName, WorkerMailBox) ->
+    Cookie = os:getenv("FL_COOKIE"),
+    GoScriptDir = os:getenv("FL_DIRECTOR_Py_DIR"),
+    io:format("go run ~p/~p.go ~p ~p ~p ~p ~p ~n",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    %S = io_lib:format("mprof run --output stats/fedlang_server_~p.dat python3 -u -m cProfile -o stats_~p.prof python_server_scripts/~p.py ~p ~p ~p ~p",[ExperimentID, ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie]),
+    S = io_lib:format("echo go run ~s/~s.go ~s ~s ~s ~s ~s",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    spawn(fun() -> os:cmd(S) end).
+
 init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescriptor, StatsNodePID) ->
     io:format("Starting aggregator for ~p ~n", [ExperimentID]),
     io:format("ExperimentDataDescriptor ~p ~n", [ExperimentDataDescriptor]),
     {Algorithm, CodeLanguage, ClientStrategy, ClientSelectionRatio, MinNumberClients, StopCondition, StopConditionThr, MaxNumRounds, JsonStrParams} = ExperimentDataDescriptor,
     io:format("Algorithm ~p ~n", [Algorithm]),
-    PythonModule = Algorithm ++ "_server",
     io:format("Clients: ~p ~n", [Clients]),
-    io:format("Algorithm, PythonModule: ~p, ~p ~n", [Algorithm, PythonModule]),
     io:format("ClientStrategy, ClientSelectionRatio: ~p, ~p ~n", [ClientStrategy, ClientSelectionRatio]),
     io:format("StopCondition, StopConditionThr: ~p, ~p ~n", [StopCondition, StopConditionThr]),
     io:format("MaxNumRounds: ~p ~n", [MaxNumRounds]),
@@ -82,47 +88,60 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
     NodeMailBox = lists:flatten(io_lib:format("mboxserver_~s",[list_to_atom(ExperimentID)])),
     register(list_to_atom(NodeMailBox), self()),
     %MYIP = os:getenv("MYIP"),
-    PyNodeName = lists:flatten(io_lib:format("py_~s@127.0.0.1",[ExperimentID])),
-    create_python_client(ExperimentID, PythonModule, PyNodeName, NodeName, NodeMailBox),
-    ClientIDs = [ID || {ID,_} <- Clients],
-    receive
-        {pyrlang_node_ready, PyPid, PythonOSPID} ->
-                io:format("-------SERVER FL pyrlang_node_ready ~p ~n", [PyPid]),
-                PyPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
-    end,
-    receive
-        {fl_server_ready, _, ClientConfig, CallsListBytes} ->
-                io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
-    end,
-    CallsList = [{binary_to_atom(SideBytes), binary_to_atom(NameBytes)} || {SideBytes, NameBytes} <- CallsListBytes],
-    io:format("Calls list: ~p ~n", [CallsList]),
-    io:format("Starting clients... ~n", []),
-    lists:map(fun({_, PID}) -> PID ! { fl_start_worker, self(), ExperimentID, Algorithm, CodeLanguage, ClientConfig, StatsNodePID} end, Clients),
-    ClientsFLPIDs = [receive { fl_worker_ready, ClientPID, FLPID } -> {ClientID, FLPID} end || {ClientID, ClientPID} <- Clients],
-%     {MegaSecs2, Secs2, _} = now(),
-%     AllWorkersReadyUnixTime = MegaSecs2 * 1000000 + Secs2,
-%     AllWorkersReadyMessage = lists:flatten(io_lib:format("{\"timestamp\":~p,\"type\":\"all_workers_ready\"}", [AllWorkersReadyUnixTime])),
-%     StatsNodePID ! {fl_message, AllWorkersReadyMessage},
-    send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"strategy_server_ready\"}"),
-    send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"all_workers_ready\"}"),
-    io:format("All clients are ready!: ~p ~n", [ClientsFLPIDs]),
-    StopConditionAtom = list_to_atom(StopCondition),
-    io:format("StopConditionAtom: ~p ~n", [StopConditionAtom]),
-    case StopConditionAtom of
-      custom ->
-        TermConParams = {MaxNumRounds},
-        TermCheckFunction = fun termcon_custom/3;
-      max_number_rounds  ->
-        TermConParams = MaxNumRounds,
-        TermCheckFunction = fun termcon_max_rounds/3;
-      metric_under_threshold ->
-        TermConParams = {MaxNumRounds, StopConditionThr},
-        TermCheckFunction = fun termcon_metric_under_threshold/3;
-      metric_over_threshold ->
-        TermConParams = {MaxNumRounds, StopConditionThr},
-        TermCheckFunction = fun termcon_metric_over_threshold/3
-    end,
-    loop(DirectorPID, NodeMailBox, ExperimentID, TermConParams, RoundNumber, ClientsFLPIDs, PyPid, TermCheckFunction, CallsList, StatsNodePID).
+    case CodeLanguage of
+      python ->
+        PythonModule = Algorithm ++ "_server",
+        io:format("Algorithm, PythonModule: ~p, ~p ~n", [Algorithm, PythonModule]),
+        PyNodeName = lists:flatten(io_lib:format("py_~s@127.0.0.1",[ExperimentID])),
+        create_python_client(ExperimentID, PythonModule, PyNodeName, NodeName, NodeMailBox),
+        ClientIDs = [ID || {ID,_} <- Clients],
+        receive
+            {pyrlang_node_ready, PyPid, PythonOSPID} ->
+                    io:format("-------SERVER FL pyrlang_node_ready ~p ~n", [PyPid]),
+                    PyPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
+        end,
+        receive
+            {fl_server_ready, _, ClientConfig, CallsListBytes} ->
+                    io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
+        end,
+        CallsList = [{binary_to_atom(SideBytes), binary_to_atom(NameBytes)} || {SideBytes, NameBytes} <- CallsListBytes],
+        io:format("Calls list: ~p ~n", [CallsList]),
+        io:format("Starting clients... ~n", []),
+        lists:map(fun({_, PID}) -> PID ! { fl_start_worker, self(), ExperimentID, Algorithm, CodeLanguage, ClientConfig, StatsNodePID} end, Clients),
+        ClientsFLPIDs = [receive { fl_worker_ready, ClientPID, FLPID } -> {ClientID, FLPID} end || {ClientID, ClientPID} <- Clients],
+    %     {MegaSecs2, Secs2, _} = now(),
+    %     AllWorkersReadyUnixTime = MegaSecs2 * 1000000 + Secs2,
+    %     AllWorkersReadyMessage = lists:flatten(io_lib:format("{\"timestamp\":~p,\"type\":\"all_workers_ready\"}", [AllWorkersReadyUnixTime])),
+    %     StatsNodePID ! {fl_message, AllWorkersReadyMessage},
+        send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"strategy_server_ready\"}"),
+        send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"all_workers_ready\"}"),
+        io:format("All clients are ready!: ~p ~n", [ClientsFLPIDs]),
+        StopConditionAtom = list_to_atom(StopCondition),
+        io:format("StopConditionAtom: ~p ~n", [StopConditionAtom]),
+        case StopConditionAtom of
+          custom ->
+            TermConParams = {MaxNumRounds},
+            TermCheckFunction = fun termcon_custom/3;
+          max_number_rounds  ->
+            TermConParams = MaxNumRounds,
+            TermCheckFunction = fun termcon_max_rounds/3;
+          metric_under_threshold ->
+            TermConParams = {MaxNumRounds, StopConditionThr},
+            TermCheckFunction = fun termcon_metric_under_threshold/3;
+          metric_over_threshold ->
+            TermConParams = {MaxNumRounds, StopConditionThr},
+            TermCheckFunction = fun termcon_metric_over_threshold/3
+        end,
+        loop(DirectorPID, NodeMailBox, ExperimentID, TermConParams, RoundNumber, ClientsFLPIDs, PyPid, TermCheckFunction, CallsList, StatsNodePID);
+      go ->
+        io:format("Executing in Go!~n"),
+        GoModule = Algorithm ++ "_server",
+        io:format("Algorithm, GoModule: ~p, ~p ~n", [Algorithm, GoModule]),
+        GoNodeName = lists:flatten(io_lib:format("go_~s@127.0.0.1",[ExperimentID])),
+        create_go_client(ExperimentID, GoModule, GoNodeName, NodeName, NodeMailBox);
+      _ -> 
+        io:format("Unsupported language: ~p~n", CodeLanguage)
+    end.
 
 loop(DirectorPID, NodeMailBox, ExperimentID, TermConParams, RoundNumber, Clients, PyPid, TermCheckFunction, CallsList, StatsNodePID) ->
     {MegaSecs1, Secs1, _} = now(),
