@@ -68,10 +68,10 @@ create_python_client(ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerM
 
 create_go_client(ExperimentID, GoModule, GoNodeName, WorkerName, WorkerMailBox) ->
     Cookie = os:getenv("FL_COOKIE"),
-    GoScriptDir = os:getenv("FL_DIRECTOR_Py_DIR"),
-    io:format("go run ~p/~p.go ~p ~p ~p ~p ~p ~n",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    GoScriptDir = os:getenv("FL_DIRECTOR_GO_DIR"),
+    S = io_lib:format("~s/~s ~s ~s ~s ~s ~s",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    io:format(S),
     %S = io_lib:format("mprof run --output stats/fedlang_server_~p.dat python3 -u -m cProfile -o stats_~p.prof python_server_scripts/~p.py ~p ~p ~p ~p",[ExperimentID, ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie]),
-    S = io_lib:format("echo go run ~s/~s.go ~s ~s ~s ~s ~s",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
     spawn(fun() -> os:cmd(S) end).
 
 init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescriptor, StatsNodePID) ->
