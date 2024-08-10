@@ -32,6 +32,15 @@ RUN pipenv run pip install .
 
 WORKDIR /app/fedlang
 
+# Add this line before the final WORKDIR /app/fedlang command
+COPY start.sh /app/fedlang/start.sh
+
+# Make sure the script has executable permissions
+RUN chmod +x /app/fedlang/start.sh
+
+# Final CMD to execute the script
+CMD ["/app/fedlang/start.sh"]
+
 # Usage:
 #	docker build -f Dockerfile -t fedlang/vm .
 #	docker run -it fedlang/vm bash
