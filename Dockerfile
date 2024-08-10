@@ -24,17 +24,17 @@ RUN pipenv run pip install .
 WORKDIR /app/fedlang/Pyrlang
 RUN pipenv -v install --deploy --ignore-pipfile
 RUN pipenv run pip install .
+WORKDIR /app/fedlang/
+RUN chmod +x start.sh
+
+RUN apt update
+RUN apt install wget -y
+RUN wget https://go.dev/dl/go1.22.6.linux-amd64.tar.gz
+RUN  rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.6.linux-amd64.tar.gz
+ENV PATH=$PATH:/usr/local/go/bin
 
 WORKDIR /app/fedlang
 
-# Add this line before the final WORKDIR /app/fedlang command
-COPY start.sh /app/fedlang/start.sh
-
-# Make sure the script has executable permissions
-RUN chmod +x /app/fedlang/start.sh
-
-# Final CMD to execute the script
-CMD ["./app/fedlang/start.sh"]
 
 # Usage:
 #	docker build -f Dockerfile -t fedlang/vm .
