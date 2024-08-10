@@ -4,18 +4,13 @@ WORKDIR /app
 
 RUN apt-get update
 RUN apt-get -y install unzip zip procps build-essential python3-pip net-tools curl git tmux
-
+COPY . /app/fedlang
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 RUN . "$HOME/.cargo/env"
 RUN pip3 install --upgrade pip 
 RUN pip install --upgrade pip 
 RUN pip3 install pyopenssl setuptools-rust semantic_version pipenv
-RUN git clone https://github.com/jlcorcuera/fedlang.git
 WORKDIR /app/fedlang
-RUN mkdir logs 
-RUN mkdir stats
-RUN git clone https://github.com/Pyrlang/Pyrlang.git
-RUN git clone https://github.com/Pyrlang/Term.git
 
 RUN pipenv -v install
 RUN pipenv -v install pandas numba
@@ -31,7 +26,6 @@ RUN pipenv -v install --deploy --ignore-pipfile
 RUN pipenv run pip install .
 
 WORKDIR /app/fedlang
-
 # Usage:
 #	docker build -f Dockerfile -t fedlang/vm .
 #	docker run -it fedlang/vm bash
