@@ -10,7 +10,8 @@ tmux split-window -h "pipenv run sh run_clients.sh 0 0"
 tmux select-pane -t 0
 tmux split-window -v "pipenv run sh run_clients.sh 1 1"
 # Split the original pane vertically and run the Erlang node
+sleep 1
 tmux select-pane -t 2
-tmux split-window -v "erlc stats_node.erl && erl -name stats_node_test@127.0.0.1 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false";
+tmux split-window 'erlc stats_node.erl && erl -name stats_node_test@127.0.0.1 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test -s init stop'; 
 # Attach to the tmux session
 tmux -2 attach-session -d
