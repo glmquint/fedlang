@@ -24,6 +24,8 @@ RUN pipenv run pip install .
 WORKDIR /app/fedlang/Pyrlang
 RUN pipenv -v install --deploy --ignore-pipfile
 RUN pipenv run pip install .
+WORKDIR /app/fedlang/
+RUN chmod +x start.sh
 
 RUN apt update
 RUN apt install wget -y
