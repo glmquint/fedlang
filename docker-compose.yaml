@@ -1,0 +1,8 @@
+
+services:
+  fedlang:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app/fedlang
