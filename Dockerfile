@@ -31,7 +31,8 @@ RUN apt update
 RUN apt install wget -y
 RUN wget https://go.dev/dl/go1.22.6.linux-amd64.tar.gz
 RUN  rm -rf /usr/local/go && tar -C /usr/local -xzf go1.22.6.linux-amd64.tar.gz
-ENV PATH=$PATH:/usr/local/go/bin
+ENV PATH="/usr/local/go/bin:${PATH}"
+RUN echo "export PATH=/usr/local/go/bin:\${PATH}" >> ~/.profile
 
 WORKDIR /app/fedlang
 

@@ -138,7 +138,13 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
         GoModule = Algorithm ++ "_server",
         io:format("Algorithm, GoModule: ~p, ~p ~n", [Algorithm, GoModule]),
         GoNodeName = lists:flatten(io_lib:format("go_~s@127.0.0.1",[ExperimentID])),
-        create_go_client(ExperimentID, GoModule, GoNodeName, NodeName, NodeMailBox);
+        create_go_client(ExperimentID, GoModule, GoNodeName, NodeName, NodeMailBox),
+        ClientIDs = [ID || {ID,_} <- Clients],
+        receive
+            {gorlang_node_ready, PyPid, PythonOSPID} ->
+                    io:format("-------SERVER FL gorlang_node_ready ~p ~n", [PyPid]),
+                    PyPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
+        end;
       _ -> 
         io:format("Unsupported language: ~p~n", CodeLanguage)
     end.
