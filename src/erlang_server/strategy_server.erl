@@ -69,7 +69,7 @@ create_python_client(ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerM
 create_go_client(ExperimentID, GoModule, GoNodeName, WorkerName, WorkerMailBox) ->
     Cookie = os:getenv("FL_COOKIE"),
     GoScriptDir = os:getenv("FL_DIRECTOR_GO_DIR"),
-    S = io_lib:format("~s/~s ~s ~s ~s ~s ~s",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    S = io_lib:format("echo '' > output; ~s/~s ~s ~s ~s ~s ~s >> output",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
     io:format(S),
     %S = io_lib:format("mprof run --output stats/fedlang_server_~p.dat python3 -u -m cProfile -o stats_~p.prof python_server_scripts/~p.py ~p ~p ~p ~p",[ExperimentID, ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie]),
     spawn(fun() -> os:cmd(S) end).

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
 	"reflect"
 
 	"github.com/ergo-services/ergo/etf"
@@ -52,14 +51,17 @@ func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term)
 	case etf.Tuple:
 		message_as_tuple, ok := message.(etf.Tuple)
 		if !ok {
+			fmt.Println("error: cannot cast message to Tuple")
 			return gen.ServerStatusIgnore
 		}
 		if len(message_as_tuple) < 2 {
+			fmt.Println("error: message_as_tuple is < 2")
 			return gen.ServerStatusIgnore
 		}
 		pid := message_as_tuple[0]
-		fun_name, ok := message_as_tuple[1].(string)
+		fun_name := fmt.Sprintf("%v", message_as_tuple[1])
 		if !ok {
+			fmt.Println("error: cannot cast message_as_tuple to string")
 			return gen.ServerStatusIgnore
 		}
 		args := message_as_tuple[2:]
@@ -67,7 +69,7 @@ func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term)
 		for i, v := range args {
 			args_slice[i] = v
 		}
-		fmt.Printf("sender = %s, fun_name = %s", pid, fun_name)
+		fmt.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
 		Call(fun_name, args_slice...)
 	}
 	return gen.ServerStatusOK
@@ -78,10 +80,12 @@ func (s *gorlangServer) Terminate(process *gen.ServerProcess, reason string) {
 }
 
 var StubStorage = map[string]interface{}{
-	"funcA": init_server,
+	"init_server": init_server,
 }
 
 func Call(funcName string, params ...interface{}) (result interface{}, err error) {
+	fmt.Printf("funcname = %s, params = %v\n", funcName, params)
+
 	f := reflect.ValueOf(StubStorage[funcName])
 	if len(params) != f.Type().NumIn() {
 		err = errors.New("The number of params is out of index.")
@@ -89,16 +93,16 @@ func Call(funcName string, params ...interface{}) (result interface{}, err error
 	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
+		fmt.Printf("param[%d] = %#v\n", k, param)
 		in[k] = reflect.ValueOf(param)
 	}
 	var res []reflect.Value
+	fmt.Printf("Calling %#v with in_args %#v\n", f, in)
 	res = f.Call(in)
 	result = res[0].Interface()
 	return
 }
 
-func init_server(experiment, json_str_config string, bb []byte) {
-	f, _ := os.Create("init_server_output.txt")
-	defer f.Close()
-	f.WriteString(fmt.Sprintf("experiment = %s, client_ids = %s, bb = %v", experiment, json_str_config, bb))
+func init_server(experiment, json_str_config, bb string) {
+	fmt.Printf("experiment = %#v, client_ids = %#v, bb = %#v\n", experiment, json_str_config, bb)
 }
