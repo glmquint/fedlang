@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/ergo-services/ergo"
@@ -17,6 +17,17 @@ func main() {
 	erl_cookie := os.Args[4]         // cookie_123456789
 	experiment_id := os.Args[5]      // c0ecdfb7-00f1-4270-8e46-d835bd00f153
 
+	logFileName := os.Getenv("FL_CLIENT_LOG_FOLDER") + "/" + os.Getenv("FL_CLIENT_ID") + ".log"
+	if logFileName == "" {
+		logFileName = "default.log"
+	}
+	logFile, err := os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
 	if err != nil {
 		panic(err)
@@ -30,8 +41,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Start erlang node with the command below:")
-	fmt.Printf("    $ erl -name %s -setcookie %s\n\n", "erl-"+node.Name(), erl_cookie)
+	log.Printf("gorlang_node_id = %v, erl_client_name = %v, erl_worker_mailbox = %v, erl_cookie = %v\n", go_node_id, erl_client_name, erl_worker_mailbox, erl_cookie)
 
 	err = proc.Send(
 		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},

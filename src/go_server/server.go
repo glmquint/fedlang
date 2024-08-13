@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"reflect"
 
 	"github.com/ergo-services/ergo/etf"
@@ -13,10 +15,13 @@ type gorlangServer struct {
 	gen.Server
 	erl_client_name    string
 	erl_worker_mailbox string
+	target_feature     int
+	max_number_rounds  int
+	epsilon            int
 }
 
 func (s *gorlangServer) HandleCast(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
-	fmt.Printf("[%s] HandleCast: %#v\n", process.Name(), message)
+	log.Printf("[%s] HandleCast: %#v\n", process.Name(), message)
 	switch message {
 	case etf.Atom("stop"):
 		return gen.ServerStatusStopWithReason("stop they said")
@@ -25,7 +30,7 @@ func (s *gorlangServer) HandleCast(process *gen.ServerProcess, message etf.Term)
 }
 
 func (s *gorlangServer) HandleCall(process *gen.ServerProcess, from gen.ServerFrom, message etf.Term) (etf.Term, gen.ServerStatus) {
-	fmt.Printf("[%s] HandleCall: %#v, From: %s\n", process.Name(), message, from.Pid)
+	log.Printf("[%s] HandleCall: %#v, From: %s\n", process.Name(), message, from.Pid)
 
 	switch message.(type) {
 	case etf.Atom:
@@ -38,7 +43,7 @@ func (s *gorlangServer) HandleCall(process *gen.ServerProcess, from gen.ServerFr
 
 // HandleInfo
 func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
-	fmt.Printf("[%s] HandleInfo: %#v\n", process.Name(), message)
+	log.Printf("[%s] HandleInfo: %#v\n", process.Name(), message)
 	switch message.(type) {
 	case etf.Atom:
 		switch message {
@@ -51,17 +56,17 @@ func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term)
 	case etf.Tuple:
 		message_as_tuple, ok := message.(etf.Tuple)
 		if !ok {
-			fmt.Println("error: cannot cast message to Tuple")
+			log.Println("error: cannot cast message to Tuple")
 			return gen.ServerStatusIgnore
 		}
 		if len(message_as_tuple) < 2 {
-			fmt.Println("error: message_as_tuple is < 2")
+			log.Println("error: message_as_tuple is < 2")
 			return gen.ServerStatusIgnore
 		}
 		pid := message_as_tuple[0]
 		fun_name := fmt.Sprintf("%v", message_as_tuple[1])
 		if !ok {
-			fmt.Println("error: cannot cast message_as_tuple to string")
+			log.Println("error: cannot cast message_as_tuple to string")
 			return gen.ServerStatusIgnore
 		}
 		args := message_as_tuple[2:]
@@ -69,22 +74,22 @@ func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term)
 		for i, v := range args {
 			args_slice[i] = v
 		}
-		fmt.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
-		Call(fun_name, args_slice...)
+		log.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
+		Call(s, fun_name, args_slice...)
 	}
 	return gen.ServerStatusOK
 }
 
 func (s *gorlangServer) Terminate(process *gen.ServerProcess, reason string) {
-	fmt.Printf("[%s] Terminating process with reason %q", process.Name(), reason)
+	log.Printf("[%s] Terminating process with reason %q", process.Name(), reason)
 }
 
-var StubStorage = map[string]interface{}{
-	"init_server": init_server,
-}
+func Call(s *gorlangServer, funcName string, params ...interface{}) (result interface{}, err error) {
+	StubStorage := map[string]interface{}{
+		"init_server": s.init_server,
+	}
 
-func Call(funcName string, params ...interface{}) (result interface{}, err error) {
-	fmt.Printf("funcname = %s, params = %v\n", funcName, params)
+	log.Printf("funcname = %s, params = %v\n", funcName, params)
 
 	f := reflect.ValueOf(StubStorage[funcName])
 	if len(params) != f.Type().NumIn() {
@@ -93,11 +98,11 @@ func Call(funcName string, params ...interface{}) (result interface{}, err error
 	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
-		fmt.Printf("param[%d] = %#v\n", k, param)
+		log.Printf("param[%d] = %#v\n", k, param)
 		in[k] = reflect.ValueOf(param)
 	}
 	var res []reflect.Value
-	fmt.Printf("Calling %#v with in_args %#v\n", f, in)
+	log.Printf("Calling %#v with in_args %#v\n", f, in)
 	res = f.Call(in)
 	result = res[0].Interface()
 	return
