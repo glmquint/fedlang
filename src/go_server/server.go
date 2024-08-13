@@ -108,6 +108,35 @@ func Call(s *gorlangServer, funcName string, params ...interface{}) (result inte
 	return
 }
 
-func init_server(experiment, json_str_config, bb string) {
-	fmt.Printf("experiment = %#v, client_ids = %#v, bb = %#v\n", experiment, json_str_config, bb)
+func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
+	byteSlice := []byte(bb)
+	client_ids := make([]int, len(byteSlice))
+	for i, b := range byteSlice {
+		client_ids[i] = int(b)
+	}
+	var experiment_config map[string]interface{}
+
+	// Parse the JSON string
+	err := json.Unmarshal([]byte(json_str_config), &experiment_config)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("experiment = %#v, client_ids = %#v, experiment_config = %#v\n", experiment, client_ids, experiment_config)
+	parameters := experiment_config["parameters"].(map[string]int)
+	log.Printf("paramters->numFeatures = %#v\n", parameters["numFeatures"])
+	n_features := parameters["numFeatures"]
+	seed := parameters["seed"]
+	n_clusters := parameters["numClusters"]
+	s.target_feature = parameters["targetFeature"]
+	s.max_number_rounds = experiment_config["maxNumberOfRounds"].(int) // WARN: max_number_rounds should be in parameters??
+	lambda_factor := parameters["lambdaFactor"]
+	stop_condition_threshold := experiment_config["stopConditionThreshold"]
+	log.Printf("n_features = %#v, seed = %#v, n_clusters = %#v, target_feature = %#v, max_number_rounds = %#v, lambda_factor = %#v, stop_condition_threshold = %#v\n", n_features, seed, n_clusters, s.target_feature, s.max_number_rounds, lambda_factor, stop_condition_threshold)
+	if stop_condition_threshold != nil {
+		s.epsilon = stop_condition_threshold.(int)
+	} else {
+		s.epsilon = -1 // HACK: check logic behind stop_condition using epsilon
+		log.Println("stop_condition_threshold is nil")
+	}
+	log.Printf("n_clusters = %#v, epsilon = %#v, max_number_rounds = %#v, n_features = %#v", n_clusters, s.epsilon, s.max_number_rounds, n_features)
 }
