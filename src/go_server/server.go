@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
@@ -19,6 +20,8 @@ type gorlangServer struct {
 	max_number_rounds  int
 	epsilon            int
 }
+
+var startFlTime = time.Time{}
 
 func (s *gorlangServer) HandleCast(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
 	log.Printf("[%s] HandleCast: %#v\n", process.Name(), message)
@@ -87,6 +90,7 @@ func (s *gorlangServer) Terminate(process *gen.ServerProcess, reason string) {
 func Call(s *gorlangServer, funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
 		"init_server": s.init_server,
+		"start_round": s.start_round,
 	}
 
 	log.Printf("funcname = %s, params = %v\n", funcName, params)
@@ -139,4 +143,18 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 		log.Println("stop_condition_threshold is nil")
 	}
 	log.Printf("n_clusters = %#v, epsilon = %#v, max_number_rounds = %#v, n_features = %#v", n_clusters, s.epsilon, s.max_number_rounds, n_features)
+}
+
+func (s *gorlangServer) start_round(round_mail_box, experiment, round_number string) {
+	log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
+	if startFlTime == (time.Time{}) {
+		startFlTime = time.Now()
+	}
+	log.Printf("start_fl_time = %#v\n", startFlTime)
+	// TODO: result := _global_model_parameters_STUB
+	log.Printf("start round result = %#v\n", "_global_model_parameters_STUB")
+	log.Printf("before sending result to [(%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
+	// TODO: tt = cPickler.dumps(result)
+	// TODO: call send from fcmeans_server to director
+
 }
