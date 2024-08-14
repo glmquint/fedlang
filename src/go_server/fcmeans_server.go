@@ -26,26 +26,28 @@ func main() {
 		log.Fatalf("Failed to open log file: %v", err)
 	}
 	defer logFile.Close()
-	log.SetOutput(logFile)
+	log.SetOutput(os.Stdout)
 
 	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
 	if err != nil {
 		panic(err)
 	}
 
-	proc, err := node.Spawn(experiment_id, gen.ProcessOptions{}, &gorlangServer{
+	geserver := gorlangServer{
 		erl_worker_mailbox: erl_worker_mailbox,
 		erl_client_name:    erl_client_name,
-	})
+	}
+
+	geserver.proc, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &geserver)
 	if err != nil {
 		panic(err)
 	}
 
 	log.Printf("gorlang_node_id = %v, erl_client_name = %v, erl_worker_mailbox = %v, erl_cookie = %v\n", go_node_id, erl_client_name, erl_worker_mailbox, erl_cookie)
 
-	err = proc.Send(
+	err = geserver.proc.Send(
 		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("gorlang_node_ready"), proc.Info().PID, os.Getpid()},
+		etf.Tuple{etf.Atom("gorlang_node_ready"), geserver.proc.Info().PID, os.Getpid()},
 	)
 	if err != nil {
 		panic(err)

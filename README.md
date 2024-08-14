@@ -19,5 +19,5 @@ docker compose run --rm fedlang bash
 ```
 
 ```bash
-cd ./src/go_server/ && go build . && cd ../.. && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh
+cd ./src/go_server/ && go build . && cd ../.. && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh 1
 ```
