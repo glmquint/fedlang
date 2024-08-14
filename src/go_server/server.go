@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"math/rand"
+	"time"
 
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
+	"github.com/nlpodyssey/gopickle/pickle"
 )
 
 type gorlangServer struct {
@@ -87,6 +90,7 @@ func (s *gorlangServer) Terminate(process *gen.ServerProcess, reason string) {
 func Call(s *gorlangServer, funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
 		"init_server": s.init_server,
+		"process_server": process_server,
 	}
 
 	log.Printf("funcname = %s, params = %v\n", funcName, params)
@@ -139,4 +143,98 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 		log.Println("stop_condition_threshold is nil")
 	}
 	log.Printf("n_clusters = %#v, epsilon = %#v, max_number_rounds = %#v, n_features = %#v", n_clusters, s.epsilon, s.max_number_rounds, n_features)
+}
+func (s *gorlangServer) process_server(round_mail_box string, experiment string, config_file string, client_responses []interface{}){
+	log.Printf("Starting process_server ...")
+	log.Printf("self = %#v, round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n",  round_mail_box, experiment, config_file, client_responses)
+	
+	rand.Seed(time.Now().UnixNano())
+	const low = 2
+	const high = 4
+	time_to_sleep := low + rand.Float64()*(high-low)
+	time.Sleep(time.Duration(time_to_sleep) * time.Second)
+
+	log.Printf("start process_server, experiment = %s, round_mail_box = %s, len(client_responses) = %d\n", experiment, round_mail_box, len(client_responses))
+
+	var data [][]interface{}
+	for _, clientResponse := range client_responses {
+		data_resp, _ := pickle.Loads(clientResponse[1].([]byte))
+
+		responseData := []interface{}{clientResponse[0], data_resp}
+		data = append(data, responseData)
+	}
+
+	for i, d := range data {
+		log.Printf("i = %d, data[0] = %v", i, d[0])
+	}
+	
+	var cl_resp [][] interface{}
+	for cr:= range data {
+		cl_resp = append(cl_resp, cr[1])
+	}
+
+	s.current_round += 1
+	num_clients := len(client_responses)
+
+	uList := make([]float64, s.NumClusters)
+	wsList := make([][]float64, s.NumClusters)
+	for i := range wsList {
+		wsList[i] = make([]float64, s.NumFeatures)
+	}
+
+	for client_idx := range(num_clients){
+		response := client_responses[client_idx]
+		for i := range(s.numClusters){
+			client_u := response[0][i]
+			if _, ok := interface{}(response[1][i]).(*mat.Dense); ok {
+				client_ws := response[1][i]
+			} else {
+				client_ws := mat.NewDense(response[1][i]) // TODO: check if is numpy array (numpy equivalent in Golang)
+			}
+			client_ws := response[1][i] // TODO: check if is numpy array (numpy equivalent in Golang)
+			uList[i] = uList[i] + client_u
+			wsList[i] = wsList[i] + client_ws
+	}
+	var newClusterCenters [][]float64
+	prevClusterCenters := s.ClusterCenters[len(s.ClusterCenters)-1]
+
+	for i := 0; i < s.NumClusters; i++ {
+		u := uList[i]
+		ws := wsList[i]
+		var center []float64
+		if u == 0 {
+			center = prevClusterCenters[i]
+		} else {
+			center = ws / float64(u)
+		}
+		newClusterCenters = append(newClusterCenters, center)
+	}
+	s.Experiment.SetGlobalModelParameters(newClusterCenters)
+	s.ClusterCenters = append(s.ClusterCenters, newClusterCenters)
+
+	data, clientIDs := s.Experiment.GetStepData(newClusterCenters)
+
+	centersR := mat.NewDense(len(newClusterCenters), len(newClusterCenters[0]), flatten(newClusterCenters))
+	centersR1 := mat.NewDense(len(prevClusterCenters), len(prevClusterCenters[0]), flatten(prevClusterCenters))
+	diffMatrix := mat.NewDense(centersR.RawMatrix().Rows, centersR.RawMatrix().Cols, nil)
+	diffMatrix.Sub(centersR, centersR1)
+	v, _ := mem.VirtualMemory()
+	cpuPercentage, _ := cpu.Percent(0, false)
+
+	metricsMessage := map[string]interface{}{
+		"timestamp": time.Now().Unix(),
+		"round":     s.CurrentRound,
+		"hostMetrics": map[string]float64{
+			"cpuUsagePercentage":    cpuPercentage[0],
+			"memoryUsagePercentage": v.UsedPercent,
+		},
+		"modelMetrics": map[string]float64{
+			"FRO": totDiffSum,
+		},
+	}
+	metricsMessageBytes, _ := json.Marshal(metricsMessage)
+
+	// TODO: Missing send metrics to the client
+
+}
 }
