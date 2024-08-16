@@ -33,10 +33,14 @@ func main() {
 		panic(err)
 	}
 
-	geserver := gorlangServer{
+	geserver := FedLangProcess{
 		erl_worker_mailbox: erl_worker_mailbox,
 		erl_client_name:    erl_client_name,
 	}
+	fcmeansserver := FCMeansServer{
+		fedlangprocess: geserver,
+	}
+	geserver.callable = fcmeansserver
 
 	geserver.proc, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &geserver)
 	if err != nil {

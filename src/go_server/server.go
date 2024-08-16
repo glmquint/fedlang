@@ -12,22 +12,19 @@ import (
 	"github.com/ergo-services/ergo/gen"
 )
 
-type gorlangServer struct {
+type FedLangProcess struct {
 	gen.Server
 	proc               gen.Process
 	erl_client_name    string
 	erl_worker_mailbox string
-	target_feature     int
-	max_number_rounds  int
-	num_clusters       int
-	epsilon            int
-	num_features       int
-	cluster_centers    [][][]float64
-	experiment         FLExperiment
-	currentRound       int
+	callable           Callable
 }
 
-func (s *gorlangServer) HandleCast(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
+type Callable interface {
+	Call(funcName string, params ...interface{}) (result interface{}, err error)
+}
+
+func (s *FedLangProcess) HandleCast(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
 	log.Printf("[%s] HandleCast: %#v\n", process.Name(), message)
 	switch message {
 	case etf.Atom("stop"):
@@ -36,7 +33,7 @@ func (s *gorlangServer) HandleCast(process *gen.ServerProcess, message etf.Term)
 	return gen.ServerStatusOK
 }
 
-func (s *gorlangServer) HandleCall(process *gen.ServerProcess, from gen.ServerFrom, message etf.Term) (etf.Term, gen.ServerStatus) {
+func (s *FedLangProcess) HandleCall(process *gen.ServerProcess, from gen.ServerFrom, message etf.Term) (etf.Term, gen.ServerStatus) {
 	log.Printf("[%s] HandleCall: %#v, From: %s\n", process.Name(), message, from.Pid)
 
 	switch message.(type) {
@@ -49,7 +46,7 @@ func (s *gorlangServer) HandleCall(process *gen.ServerProcess, from gen.ServerFr
 }
 
 // HandleInfo
-func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
+func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
 	log.Printf("[%s] HandleInfo: %#v\n", process.Name(), message)
 	switch message.(type) {
 	case etf.Atom:
@@ -82,16 +79,28 @@ func (s *gorlangServer) HandleInfo(process *gen.ServerProcess, message etf.Term)
 			args_slice[i] = v
 		}
 		log.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
-		Call(s, fun_name, args_slice...)
+		s.callable.Call(fun_name, args_slice...)
 	}
 	return gen.ServerStatusOK
 }
 
-func (s *gorlangServer) Terminate(process *gen.ServerProcess, reason string) {
+func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
 	log.Printf("[%s] Terminating process with reason %q", process.Name(), reason)
 }
 
-func Call(s *gorlangServer, funcName string, params ...interface{}) (result interface{}, err error) {
+type FCMeansServer struct {
+	fedlangprocess    FedLangProcess
+	target_feature    int
+	max_number_rounds int
+	num_clusters      int
+	epsilon           int
+	num_features      int
+	cluster_centers   [][][]float64
+	experiment        FLExperiment
+	currentRound      int
+}
+
+func (s FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
 		"init_server": s.init_server,
 	}
@@ -136,7 +145,7 @@ type FLExperiment struct {
 	_latency_required           bool
 }
 
-func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
+func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 	byteSlice := []byte(bb)
 	client_ids := make([]int, len(byteSlice))
 	for i, b := range byteSlice {
@@ -168,6 +177,7 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 	}
 	log.Printf("n_clusters = %#v, epsilon = %#v, max_number_rounds = %#v, n_features = %#v", n_clusters, s.epsilon, s.max_number_rounds, n_features)
 	min_num_clients := int(experiment_config["minNumberClients"].(float64))
+	log.Printf("min_num_clients = %#v\n", min_num_clients)
 	flexperiment := FLExperiment{
 		_max_number_rounds: s.max_number_rounds,
 		_client_ids:        client_ids,
@@ -181,9 +191,9 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 		_calls_list:       make([][][]byte, 0),
 		_validate:         false,
 	}
+	log.Printf("flexperiment = %#v\n", flexperiment)
 	rand.Seed(int64(seed))
 
-	// Create centers matrix with random values
 	centers := make([][]float64, n_clusters)
 	for i := 0; i < n_clusters; i++ {
 		centers[i] = make([]float64, n_features)
@@ -191,6 +201,7 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 			centers[i][j] = rand.Float64()
 		}
 	}
+	log.Printf("centers = %#v\n", centers)
 	s.num_clusters = n_clusters
 	s.num_features = n_features
 	cluster_centers := make([][][]float64, 0)
@@ -198,16 +209,14 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 	s.cluster_centers = cluster_centers
 	_ = make([]float64, 0)
 
-	// Convert centers to a list of lists (slices of slices in Go)
 	centerList := make([][]float64, len(centers))
 	for i, center := range centers {
 		centerList[i] = center
 	}
+	log.Printf("centerList = %#v\n", centerList)
 
-	// Set global model parameters
 	flexperiment._global_model_parameters = centerList
 
-	// Set types of termination and client selection
 	flexperiment._type_of_termination = "custom"
 	flexperiment._type_of_client_selection = "probability"
 	flexperiment._client_ratio = 1
@@ -217,18 +226,20 @@ func (s *gorlangServer) init_server(experiment, json_str_config, bb string) {
 	s.experiment = flexperiment
 	s.currentRound = 0
 
-	// Get initialization values
 	clientConfig, _, _, _, _, callsList := flexperiment.get_initialization()
+	log.Printf("clientConfig = %#v\n", clientConfig)
 
-	// Convert client configuration to JSON string
 	clientConfigurationStr, err := json.Marshal(clientConfig)
 	if err != nil {
 		log.Fatalf("Error marshaling client config: %v", err)
 	}
-	err = s.proc.Send(
-		gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name},
-		etf.Tuple{etf.Atom("fl_server_ready"), s.proc.Info().PID, clientConfigurationStr, callsList},
+	log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
+	msg := etf.Tuple{etf.Atom("fl_server_ready"), s.fedlangprocess.proc.Info().PID, clientConfigurationStr, callsList}
+	err = s.fedlangprocess.proc.Send(
+		gen.ProcessID{Name: s.fedlangprocess.erl_worker_mailbox, Node: s.fedlangprocess.erl_client_name},
+		msg,
 	)
+	log.Printf("message sent = %#v\n", msg)
 	if err != nil {
 		panic(err)
 	}
