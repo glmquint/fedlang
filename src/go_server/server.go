@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -264,10 +266,38 @@ func (s *gorlangServer) start_round(round_mail_box, experiment, round_number str
 		startFlTime = time.Now()
 	}
 	log.Printf("start_fl_time = %#v\n", startFlTime)
-	// TODO: result := _global_model_parameters_STUB
+	result := s.experiment._global_model_parameters
+	client_ids := s.experiment._client_ids
 	log.Printf("start round result = %#v\n", "_global_model_parameters_STUB")
 	log.Printf("before sending result to [(%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
-	// TODO: tt = cPickler.dumps(result)
-	// TODO: call send from fcmeans_server to director
 
+	// Create a new encoder and encode the result
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(result); err != nil {
+		fmt.Println("Error encoding:", err)
+	}
+
+	// The serialized data is now in buffer.Bytes()
+	tt := buffer.Bytes()
+	log.Printf("Serialized data:", tt)
+
+	//--------------------------------------
+	var decodedResult map[string]interface{}
+	decoder := gob.NewDecoder(bytes.NewReader(tt))
+	if err := decoder.Decode(&decodedResult); err != nil {
+		log.Println("Error decoding:", err)
+	}
+
+	log.Println("Deserialized data:", decodedResult)
+
+	//--------------------------------------
+
+	err := s.proc.Send(
+		gen.ProcessID{Name: round_mail_box, Node: s.erl_client_name},
+		etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids},
+	)
+	if err != nil {
+		panic(err)
+	}
 }
