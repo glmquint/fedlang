@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Start tmux session and run the director
 tmux new-session -d -s fedlang "pipenv run sh run_director.sh; read"
 sleep 1
