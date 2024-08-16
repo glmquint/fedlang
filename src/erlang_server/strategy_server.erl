@@ -69,7 +69,7 @@ create_python_client(ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerM
 create_go_client(ExperimentID, GoModule, GoNodeName, WorkerName, WorkerMailBox) ->
     Cookie = os:getenv("FL_COOKIE"),
     GoScriptDir = os:getenv("FL_DIRECTOR_GO_DIR"),
-    S = io_lib:format("~s/~s ~s ~s ~s ~s ~s",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    S = io_lib:format("~s/~s ~s ~s ~s ~s ~s >> output",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
     io:format(S),
     %S = io_lib:format("mprof run --output stats/fedlang_server_~p.dat python3 -u -m cProfile -o stats_~p.prof python_server_scripts/~p.py ~p ~p ~p ~p",[ExperimentID, ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie]),
     spawn(fun() -> os:cmd(S) end).
@@ -141,9 +141,13 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
         create_go_client(ExperimentID, GoModule, GoNodeName, NodeName, NodeMailBox),
         ClientIDs = [ID || {ID,_} <- Clients],
         receive
-            {gorlang_node_ready, PyPid, PythonOSPID} ->
-                    io:format("-------SERVER FL gorlang_node_ready ~p ~n", [PyPid]),
-                    PyPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
+            {gorlang_node_ready, GoPid, PythonOSPID} ->
+                    io:format("-------SERVER FL gorlang_node_ready ~p ~n", [GoPid]),
+                    GoPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
+        end,
+        receive
+            {fl_server_ready, _, ClientConfig, CallsListBytes} ->
+                    io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
         end;
       _ -> 
         io:format("Unsupported language: ~p~n", CodeLanguage)

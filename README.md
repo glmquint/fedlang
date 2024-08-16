@@ -16,5 +16,8 @@ mkdir stats logs
 ```
  ```bash
 docker compose run --rm fedlang bash
-cd ./src/go_server/ && go build . && cd ../.. && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh
+```
+
+```bash
+cd ./src/go_server/ && go build . && cd ../.. && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh 1
 ```
