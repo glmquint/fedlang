@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"os"
 	"time"
@@ -61,7 +60,7 @@ func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result int
 }
 
 type FLExperiment struct {
-	_global_model_parameters    interface{}
+	_global_model_parameters    [][]float64
 	_client_configuration       map[string]interface{}
 	_max_number_rounds          int
 	_client_ids                 interface{}
@@ -213,15 +212,16 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 	}
 	log.Printf("start_fl_time = %#v\n", startFlTime)
 	result := s.FLExperiment._global_model_parameters
-	client_ids := s.FLExperiment._client_ids
 	log.Printf("start round result = %#v\n", result)
-	log.Printf("before sending result to [(%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
+	client_ids := s.FLExperiment._client_ids
+	log.Printf("before sending result to (%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
 
 	// Create a new encoder and encode the result
 	var buffer bytes.Buffer
 	encoder := gob.NewEncoder(&buffer)
 	if err := encoder.Encode(result); err != nil {
-		fmt.Println("Error encoding:", err)
+		log.Fatal("Error encoding:", err)
+		panic(err)
 	}
 
 	// The serialized data is now in buffer.Bytes()
@@ -229,10 +229,11 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 	log.Println("Serialized data:", tt)
 
 	//--------------------------------------
-	var decodedResult map[string]interface{}
+	var decodedResult [][]float64
 	decoder := gob.NewDecoder(bytes.NewReader(tt))
 	if err := decoder.Decode(&decodedResult); err != nil {
 		log.Println("Error decoding:", err)
+		panic(err)
 	}
 
 	log.Println("Deserialized data:", decodedResult)
