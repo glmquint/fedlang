@@ -144,11 +144,11 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
             {gorlang_node_ready, GoPid, GoOSPID} ->
                     io:format("~n-------SERVER FL gorlang_node_ready ~p ~n", [GoPid]),
                     GoPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
+        end,
+        receive
+            {fl_server_ready, _, ClientConfig, CallsListBytes} ->
+                    io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
         end;
-        % receive
-        %     {fl_server_ready, _, ClientConfig, CallsListBytes} ->
-        %             io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
-        % end,
         % CallsList = [{binary_to_atom(SideBytes), binary_to_atom(NameBytes)} || {SideBytes, NameBytes} <- CallsListBytes],
         % io:format("Calls list: ~p ~n", [CallsList]),
         % io:format("Starting clients... ~n", []),
