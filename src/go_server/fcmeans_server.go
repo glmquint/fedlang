@@ -65,7 +65,7 @@ type FLExperiment struct {
 	_client_selection_threshold interface{}
 	_round_selected_ids         interface{}
 	_latency                    int
-	_calls_list                 [][][]byte
+	_calls_list                 []etf.Tuple
 	_validate                   bool
 	experiment_history          interface{}
 	_latency_required           bool
@@ -114,7 +114,7 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 			"_do_sleep":      true,
 		},
 		_latency_required: true,
-		_calls_list:       make([][][]byte, 0),
+		_calls_list:       nil,
 		_validate:         false,
 	}
 	log.Printf("flexperiment = %#v\n", flexperiment)
@@ -178,19 +178,15 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 	log.Printf("message sent = %#v\n", msg)
 }
 
-func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte, float64, int, [][][]byte) {
+func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte, float64, int, []etf.Tuple) {
 	typeOfTermination := []byte(e._type_of_termination)
 
 	// Handling the callsList logic
 	if len(e._calls_list) == 0 {
 		if e._validate {
-			e._calls_list = [][][]byte{
-				{[]byte("standard"), []byte("two_step")},
-			}
+			e._calls_list = append(e._calls_list, etf.Tuple{[]byte("standard"), []byte("two_step")})
 		} else {
-			e._calls_list = [][][]byte{
-				{[]byte("standard"), []byte("one_step")},
-			}
+			e._calls_list = append(e._calls_list, etf.Tuple{[]byte("standard"), []byte("one_step")})
 		}
 	}
 
