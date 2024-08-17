@@ -206,7 +206,7 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 
 var startFlTime = time.Time{}
 
-func (s *FCMeansServer) start_round(round_mail_box, experiment, round_number string) {
+func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_number int) {
 	log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
 	if startFlTime == (time.Time{}) {
 		startFlTime = time.Now()
@@ -214,7 +214,7 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment, round_number str
 	log.Printf("start_fl_time = %#v\n", startFlTime)
 	result := s.FLExperiment._global_model_parameters
 	client_ids := s.FLExperiment._client_ids
-	log.Printf("start round result = %#v\n", "_global_model_parameters_STUB")
+	log.Printf("start round result = %#v\n", result)
 	log.Printf("before sending result to [(%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
 
 	// Create a new encoder and encode the result
