@@ -160,3 +160,5 @@ cython_debug/
 #.idea/
 Term/
 Pyrlang/
+src/erlang_server/output
+src/go_server/fcmeans_server
