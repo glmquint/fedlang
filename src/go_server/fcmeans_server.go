@@ -17,6 +17,8 @@ func main() {
 	erl_cookie := os.Args[4]         // cookie_123456789
 	experiment_id := os.Args[5]      // c0ecdfb7-00f1-4270-8e46-d835bd00f153
 
+	log.Printf("gorlang_node_id = %v, erl_client_name = %v, erl_worker_mailbox = %v, erl_cookie = %v, experiment_id = %v\n", go_node_id, erl_client_name, erl_worker_mailbox, erl_cookie, experiment_id)
+
 	logFileName := os.Getenv("FL_CLIENT_LOG_FOLDER") + "/" + os.Getenv("FL_CLIENT_ID") + ".log"
 	if logFileName == "" {
 		logFileName = "default.log"
@@ -30,28 +32,36 @@ func main() {
 
 	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
 	if err != nil {
+		log.Fatalf("Error: %v", err)
 		panic(err)
 	}
 
 	geserver := FedLangProcess{
-		erl_worker_mailbox: erl_worker_mailbox,
 		erl_client_name:    erl_client_name,
+		erl_worker_mailbox: erl_worker_mailbox,
 	}
 	fcmeansserver := FCMeansServer{
-		fedlangprocess: geserver,
+		FedLangProcess:    FedLangProcess{},
+		target_feature:    0,
+		max_number_rounds: 0,
+		num_clusters:      0,
+		epsilon:           0,
+		num_features:      0,
+		cluster_centers:   [][][]float64{},
+		FLExperiment:      FLExperiment{},
+		currentRound:      0,
 	}
-	geserver.callable = fcmeansserver
+	geserver.Callable = fcmeansserver
 
-	geserver.proc, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &geserver)
+	geserver.Process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &geserver)
 	if err != nil {
+		log.Fatalf("Error: %v", err)
 		panic(err)
 	}
 
-	log.Printf("gorlang_node_id = %v, erl_client_name = %v, erl_worker_mailbox = %v, erl_cookie = %v\n", go_node_id, erl_client_name, erl_worker_mailbox, erl_cookie)
-
-	err = geserver.proc.Send(
+	err = geserver.Process.Send(
 		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("gorlang_node_ready"), geserver.proc.Info().PID, os.Getpid()},
+		etf.Tuple{etf.Atom("gorlang_node_ready"), geserver.Process.Info().PID, os.Getpid()},
 	)
 	if err != nil {
 		panic(err)

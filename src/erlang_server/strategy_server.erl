@@ -69,7 +69,7 @@ create_python_client(ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerM
 create_go_client(ExperimentID, GoModule, GoNodeName, WorkerName, WorkerMailBox) ->
     Cookie = os:getenv("FL_COOKIE"),
     GoScriptDir = os:getenv("FL_DIRECTOR_GO_DIR"),
-    S = io_lib:format("~s/~s ~s ~s ~s ~s ~s >> output",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
+    S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output",[GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]),
     io:format(S),
     %S = io_lib:format("mprof run --output stats/fedlang_server_~p.dat python3 -u -m cProfile -o stats_~p.prof python_server_scripts/~p.py ~p ~p ~p ~p",[ExperimentID, ExperimentID, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie]),
     spawn(fun() -> os:cmd(S) end).
@@ -97,7 +97,7 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
         ClientIDs = [ID || {ID,_} <- Clients],
         receive
             {pyrlang_node_ready, PyPid, PythonOSPID} ->
-                    io:format("-------SERVER FL pyrlang_node_ready ~p ~n", [PyPid]),
+                    io:format("~n-------SERVER FL pyrlang_node_ready ~p ~n", [PyPid]),
                     PyPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
         end,
         receive
@@ -142,42 +142,38 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
         ClientIDs = [ID || {ID,_} <- Clients],
         receive
             {gorlang_node_ready, GoPid, GoOSPID} ->
-                    io:format("-------SERVER FL gorlang_node_ready ~p ~n", [GoPid]),
+                    io:format("~n-------SERVER FL gorlang_node_ready ~p ~n", [GoPid]),
                     GoPid ! {self(), 'init_server', ExperimentID, JsonStrParams, ClientIDs}
-        end,
-        receive
-            {fl_server_ready, _, ClientConfig, CallsListBytes} ->
-                    io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
-        end,
-        CallsList = [{binary_to_atom(SideBytes), binary_to_atom(NameBytes)} || {SideBytes, NameBytes} <- CallsListBytes],
-        io:format("Calls list: ~p ~n", [CallsList]),
-        io:format("Starting clients... ~n", []),
-        lists:map(fun({_, PID}) -> PID ! { fl_start_worker, self(), ExperimentID, Algorithm, CodeLanguage, ClientConfig, StatsNodePID} end, Clients),
-        ClientsFLPIDs = [receive { fl_worker_ready, ClientPID, FLPID } -> {ClientID, FLPID} end || {ClientID, ClientPID} <- Clients],
-    %     {MegaSecs2, Secs2, _} = now(),
-    %     AllWorkersReadyUnixTime = MegaSecs2 * 1000000 + Secs2,
-    %     AllWorkersReadyMessage = lists:flatten(io_lib:format("{\"timestamp\":~p,\"type\":\"all_workers_ready\"}", [AllWorkersReadyUnixTime])),
-    %     StatsNodePID ! {fl_message, AllWorkersReadyMessage},
-        send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"strategy_server_ready\"}"),
-        send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"all_workers_ready\"}"),
-        io:format("All clients are ready!: ~p ~n", [ClientsFLPIDs]),
-        StopConditionAtom = list_to_atom(StopCondition),
-        io:format("StopConditionAtom: ~p ~n", [StopConditionAtom]),
-        case StopConditionAtom of
-          custom ->
-            TermConParams = {MaxNumRounds},
-            TermCheckFunction = fun termcon_custom/3;
-          max_number_rounds  ->
-            TermConParams = MaxNumRounds,
-            TermCheckFunction = fun termcon_max_rounds/3;
-          metric_under_threshold ->
-            TermConParams = {MaxNumRounds, StopConditionThr},
-            TermCheckFunction = fun termcon_metric_under_threshold/3;
-          metric_over_threshold ->
-            TermConParams = {MaxNumRounds, StopConditionThr},
-            TermCheckFunction = fun termcon_metric_over_threshold/3
-        end,
-        loop(DirectorPID, NodeMailBox, ExperimentID, TermConParams, RoundNumber, ClientsFLPIDs, GoPid, TermCheckFunction, CallsList, StatsNodePID);
+        end;
+        % receive
+        %     {fl_server_ready, _, ClientConfig, CallsListBytes} ->
+        %             io:format("------- fl_server_ready ~p ~p ~n", [ClientConfig, CallsListBytes])
+        % end,
+        % CallsList = [{binary_to_atom(SideBytes), binary_to_atom(NameBytes)} || {SideBytes, NameBytes} <- CallsListBytes],
+        % io:format("Calls list: ~p ~n", [CallsList]),
+        % io:format("Starting clients... ~n", []),
+        % lists:map(fun({_, PID}) -> PID ! { fl_start_worker, self(), ExperimentID, Algorithm, CodeLanguage, ClientConfig, StatsNodePID} end, Clients),
+        % ClientsFLPIDs = [receive { fl_worker_ready, ClientPID, FLPID } -> {ClientID, FLPID} end || {ClientID, ClientPID} <- Clients],
+        % send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"strategy_server_ready\"}"),
+        % send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"all_workers_ready\"}"),
+        % io:format("All clients are ready!: ~p ~n", [ClientsFLPIDs]),
+        % StopConditionAtom = list_to_atom(StopCondition),
+        % io:format("StopConditionAtom: ~p ~n", [StopConditionAtom]),
+        % case StopConditionAtom of
+        %   custom ->
+        %     TermConParams = {MaxNumRounds},
+        %     TermCheckFunction = fun termcon_custom/3;
+        %   max_number_rounds  ->
+        %     TermConParams = MaxNumRounds,
+        %     TermCheckFunction = fun termcon_max_rounds/3;
+        %   metric_under_threshold ->
+        %     TermConParams = {MaxNumRounds, StopConditionThr},
+        %     TermCheckFunction = fun termcon_metric_under_threshold/3;
+        %   metric_over_threshold ->
+        %     TermConParams = {MaxNumRounds, StopConditionThr},
+        %     TermCheckFunction = fun termcon_metric_over_threshold/3
+        % end,
+        % loop(DirectorPID, NodeMailBox, ExperimentID, TermConParams, RoundNumber, ClientsFLPIDs, GoPid, TermCheckFunction, CallsList, StatsNodePID);
       _ -> 
         io:format("Unsupported language: ~p~n", CodeLanguage)
     end.

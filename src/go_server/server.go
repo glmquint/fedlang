@@ -14,10 +14,10 @@ import (
 
 type FedLangProcess struct {
 	gen.Server
-	proc               gen.Process
+	gen.Process
 	erl_client_name    string
 	erl_worker_mailbox string
-	callable           Callable
+	Callable
 }
 
 type Callable interface {
@@ -79,7 +79,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 			args_slice[i] = v
 		}
 		log.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
-		s.callable.Call(fun_name, args_slice...)
+		s.Callable.Call(fun_name, args_slice...)
 	}
 	return gen.ServerStatusOK
 }
@@ -89,15 +89,15 @@ func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
 }
 
 type FCMeansServer struct {
-	fedlangprocess    FedLangProcess
+	FedLangProcess
 	target_feature    int
 	max_number_rounds int
 	num_clusters      int
 	epsilon           int
 	num_features      int
 	cluster_centers   [][][]float64
-	experiment        FLExperiment
-	currentRound      int
+	FLExperiment
+	currentRound int
 }
 
 func (s FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
@@ -223,7 +223,7 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 	flexperiment._client_values = nil
 	flexperiment._step_wise_client_selection = false
 	flexperiment._client_selection_threshold = nil
-	s.experiment = flexperiment
+	s.FLExperiment = flexperiment
 	s.currentRound = 0
 
 	clientConfig, _, _, _, _, callsList := flexperiment.get_initialization()
@@ -234,9 +234,9 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 		log.Fatalf("Error marshaling client config: %v", err)
 	}
 	log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
-	msg := etf.Tuple{etf.Atom("fl_server_ready"), s.fedlangprocess.proc.Info().PID, clientConfigurationStr, callsList}
-	err = s.fedlangprocess.proc.Send(
-		gen.ProcessID{Name: s.fedlangprocess.erl_worker_mailbox, Node: s.fedlangprocess.erl_client_name},
+	msg := etf.Tuple{etf.Atom("fl_server_ready"), s.Process.Info().PID, clientConfigurationStr, callsList}
+	err = s.Process.Send(
+		gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name},
 		msg,
 	)
 	log.Printf("message sent = %#v\n", msg)
