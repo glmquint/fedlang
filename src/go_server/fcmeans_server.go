@@ -1,17 +1,22 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"os"
+	"time"
 
+	"encoding/gob"
 	"encoding/json"
 	"errors"
+	"math/rand"
+	"reflect"
+
 	"github.com/ergo-services/ergo"
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
 	"github.com/ergo-services/ergo/node"
-	"math/rand"
-	"reflect"
 )
 
 type FCMeansServer struct {
@@ -193,6 +198,51 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 	// Returning multiple values
 	return e._client_configuration, e._max_number_rounds, typeOfTermination, e._termination_threshold, e._latency, e._calls_list
 }
+
+var startFlTime = time.Time{}
+
+func (s *FCMeansServer) start_round(round_mail_box, experiment, round_number string) {
+	log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
+	if startFlTime == (time.Time{}) {
+		startFlTime = time.Now()
+	}
+	log.Printf("start_fl_time = %#v\n", startFlTime)
+	result := s.FLExperiment._global_model_parameters
+	client_ids := s.FLExperiment._client_ids
+	log.Printf("start round result = %#v\n", "_global_model_parameters_STUB")
+	log.Printf("before sending result to [(%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
+
+	// Create a new encoder and encode the result
+	var buffer bytes.Buffer
+	encoder := gob.NewEncoder(&buffer)
+	if err := encoder.Encode(result); err != nil {
+		fmt.Println("Error encoding:", err)
+	}
+
+	// The serialized data is now in buffer.Bytes()
+	tt := buffer.Bytes()
+	log.Println("Serialized data:", tt)
+
+	//--------------------------------------
+	var decodedResult map[string]interface{}
+	decoder := gob.NewDecoder(bytes.NewReader(tt))
+	if err := decoder.Decode(&decodedResult); err != nil {
+		log.Println("Error decoding:", err)
+	}
+
+	log.Println("Deserialized data:", decodedResult)
+
+	//--------------------------------------
+
+	err := s.Process.Send(
+		gen.ProcessID{Name: round_mail_box, Node: s.erl_client_name},
+		etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids},
+	)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
 	go_node_id := os.Args[1]         // go_c0ecdfb7-00f1-4270-8e46-d835bd00f153@127.0.0.1
 	erl_client_name := os.Args[2]    // director@127.0.0.1

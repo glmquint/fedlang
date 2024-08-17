@@ -21,6 +21,7 @@ type Callable interface {
 }
 
 func (s *FedLangProcess) HandleCast(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
+
 	log.Printf("[%s] HandleCast: %#v\n", process.Name(), message)
 	switch message {
 	case etf.Atom("stop"):
