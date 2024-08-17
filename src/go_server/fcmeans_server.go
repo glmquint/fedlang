@@ -34,6 +34,7 @@ type FCMeansServer struct {
 func (s FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
 		"init_server": s.init_server,
+		"start_round": s.start_round,
 	}
 
 	log.Printf("funcname = %s, params = %v\n", funcName, params)
@@ -51,6 +52,10 @@ func (s FCMeansServer) Call(funcName string, params ...interface{}) (result inte
 	var res []reflect.Value
 	log.Printf("Calling %#v with in_args %#v\n", f, in)
 	res = f.Call(in)
+	if len(res) == 0 {
+		err = nil
+		return
+	}
 	result = res[0].Interface()
 	return
 }
@@ -241,6 +246,8 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment, round_number str
 	if err != nil {
 		panic(err)
 	}
+
+	log.Printf("after sending (%#v, %#v) ! (start_round_ok)", s.erl_worker_mailbox, s.erl_client_name)
 }
 
 func main() {
