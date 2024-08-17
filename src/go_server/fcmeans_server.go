@@ -27,11 +27,11 @@ type FCMeansServer struct {
 	epsilon           int
 	num_features      int
 	cluster_centers   [][][]float64
-	FLExperiment
+	*FLExperiment
 	currentRound int
 }
 
-func (s FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
+func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
 		"init_server": s.init_server,
 		"start_round": s.start_round,
@@ -159,7 +159,7 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 	flexperiment._client_values = nil
 	flexperiment._step_wise_client_selection = false
 	flexperiment._client_selection_threshold = nil
-	s.FLExperiment = flexperiment
+	s.FLExperiment = &flexperiment
 	s.currentRound = 0
 
 	clientConfig, _, _, _, _, callsList := flexperiment.get_initialization()
@@ -283,7 +283,7 @@ func main() {
 	fcmeansserver := FCMeansServer{
 		FedLangProcess: &geserver,
 	}
-	geserver.Callable = fcmeansserver
+	geserver.Callable = &fcmeansserver
 
 	proc, err := node.Spawn(experiment_id, gen.ProcessOptions{}, &geserver)
 	if err != nil {
