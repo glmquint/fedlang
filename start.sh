@@ -2,6 +2,7 @@
 
 # Start tmux session and run the director
 tmux new-session -d -s fedlang "pipenv run sh run_director.sh; read"
+tmux set-option -g mouse on
 sleep 1
 # Split the window horizontally and run the first client
 tmux split-window -h "pipenv run sh run_clients.sh 0 0; read"
