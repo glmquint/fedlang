@@ -271,6 +271,7 @@ func (fl *FLExperiment) get_step_data() (interface{}, []int) {
 	} else {
 		// TODO: implement perform_client_selection
 		//step_selected_ids = fl._perform_client_selection()
+		panic("Not implemented")
 	}
 	fl._round_selected_ids = step_selected_ids
 	return fl._global_model_parameters, fl._round_selected_ids
@@ -293,7 +294,7 @@ func flattenHelper(input interface{}, result *[]float64) {
 		log.Printf("flattenHelper: unknown type %v\n", val.Kind())
 	}
 }
-func (s *FCMeansServer) process_server(round_mail_box string, experiment string, config_file string, client_responses []interface{}) {
+func (s *FCMeansServer) process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List) {
 	log.Printf("Starting process_server ...")
 	log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
 
@@ -305,39 +306,50 @@ func (s *FCMeansServer) process_server(round_mail_box string, experiment string,
 
 	log.Printf("start process_server, experiment = %s, round_mail_box = %s, len(client_responses) = %d\n", experiment, round_mail_box, len(client_responses))
 
-	var data [][]interface{}
+	type clientDataType struct {
+		clientId int
+		result   pickle.Tuple
+	}
+	var data []clientDataType
+	// etf.List{etf.Tuple{0, []uint8{
 	for _, clientResponse := range client_responses {
-		clientResponseSlice, ok := clientResponse.([]interface{})
+		clientResponseSlice, ok := clientResponse.(etf.Tuple)
 		if !ok {
-			log.Printf("Error: clientResponse is not of type []interface{}")
-			continue
+			panic("Error: clientResponse is not of type etf.Tuple")
 		}
-		var decodedResult map[string]interface{}
+		if len(clientResponseSlice) < 2 {
+			panic("Error: clientResponseSlice is < 2")
+		}
+		var decodedResult pickle.Tuple
+		// ([1.0, 2.0, ...], [[1.0, 2.0, ...], [1.0, 2.0, ...], ...])
 		decoder := pickle.NewDecoder(bytes.NewReader(clientResponseSlice[1].([]byte)))
 		decodedResult_tmp, err := decoder.Decode()
 		if err != nil {
 			panic(err)
 		}
-		decodedResult, ok = decodedResult_tmp.(map[string]interface{})
+
+		decodedResult, ok = decodedResult_tmp.(pickle.Tuple)
 		if !ok {
-			panic("Error: decodedResult is not of type map[string]interface{}")
+			panic("Error: decodedResult is not of type resultType")
 		}
 
-		responseData := []interface{}{clientResponseSlice[0], decodedResult}
+		responseData := clientDataType{clientResponseSlice[0].(int), decodedResult}
 		data = append(data, responseData)
 	}
 
 	for i, d := range data {
-		log.Printf("i = %d, data[0] = %v", i, d[0])
+		log.Printf("i = %d, data[0] = %v", i, d.clientId)
 	}
 
-	var cl_resp [][]interface{}
+	var cl_resp []pickle.Tuple
 	for _, cr := range data {
-		cl_resp = append(cl_resp, cr[1].([]interface{}))
+		cl_resp = append(cl_resp, cr.result)
 	}
+	log.Printf("cl_resp = %#v\n", cl_resp)
 
 	s.currentRound += 1
 	num_clients := len(client_responses)
+	log.Printf("num_clients = %#v\n", num_clients)
 
 	uList := make([]float64, s.num_clusters)
 	wsList := make([][]float64, s.num_clusters)
@@ -346,36 +358,20 @@ func (s *FCMeansServer) process_server(round_mail_box string, experiment string,
 	}
 
 	for client_idx := 0; client_idx < num_clients; client_idx++ {
-		response := client_responses[client_idx]
-		responseSlice, ok := response.([]interface{})
-		if !ok {
-			log.Printf("Error: response is not of type []interface{}")
-			continue
-		}
+		response := data[client_idx].result
+		us := response[0].([]interface{})
+		wss := response[1].([]interface{})
 		for i := 0; i < s.num_clusters; i++ {
 			var clientWs *mat.Dense
-			clientUs, ok := responseSlice[0].([]interface{})
-			if !ok {
-				log.Printf("Error: responseSlice[0] is not of type []interface{}")
-				continue
+			clientU := us[i].(float64)
+			log.Printf("clientU = %#v\n", clientU)
+			ws := wss[i].([]interface{})
+			log.Printf("ws = %#v\n", ws)
+			clientWs = mat.NewDense(1, len(ws), nil)
+			for j, w := range ws {
+				clientWs.Set(0, j, w.(float64))
 			}
-			if ws, ok := responseSlice[i].(*mat.Dense); ok {
-				clientWs = ws
-			} else {
-				// Assuming clientWsSlice[i] is a 2D slice of float64
-				wsData, ok := responseSlice[i].([][]float64)
-				if !ok {
-					log.Printf("Error: clientWsSlice[%d] is not of type [][]float64", i)
-					continue
-				}
-				clientWs = mat.NewDense(len(wsData), len(wsData[0]), nil)
-				for rowIdx, row := range wsData {
-					for colIdx, val := range row {
-						clientWs.Set(rowIdx, colIdx, val)
-					}
-				}
-			}
-			clientU := clientUs[i].(float64)
+			log.Printf("clientWs = %#v\n", clientWs)
 			uList[i] += clientU
 			for j := 0; j < clientWs.RawMatrix().Cols; j++ {
 				wsList[i][j] += clientWs.At(0, j)
