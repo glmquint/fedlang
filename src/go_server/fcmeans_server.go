@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"log"
+	"math"
 	"os"
 	"time"
 
@@ -16,6 +17,9 @@ import (
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
 	"github.com/ergo-services/ergo/node"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"gonum.org/v1/gonum/mat"
 )
 
 type FCMeansServer struct {
@@ -32,8 +36,9 @@ type FCMeansServer struct {
 
 func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
-		"init_server": s.init_server,
-		"start_round": s.start_round,
+		"init_server":    s.init_server,
+		"start_round":    s.start_round,
+		"process_server": s.process_server,
 	}
 
 	log.Printf("funcname = %s, params = %v\n", funcName, params)
@@ -70,9 +75,9 @@ type FLExperiment struct {
 	_type_of_client_selection   interface{}
 	_client_ratio               interface{}
 	_client_values              interface{}
-	_step_wise_client_selection interface{}
+	_step_wise_client_selection bool
 	_client_selection_threshold interface{}
-	_round_selected_ids         interface{}
+	_round_selected_ids         []int
 	_latency                    int
 	_calls_list                 []etf.Tuple
 	_validate                   bool
@@ -259,6 +264,182 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 	log.Printf("after sending (%#v, %#v) ! (start_round_ok)", s.erl_worker_mailbox, s.erl_client_name)
 }
 
+func (fl *FLExperiment) get_step_data() (interface{}, []int) {
+	var step_selected_ids []int
+	if !fl._step_wise_client_selection {
+		step_selected_ids = fl._round_selected_ids
+	} else {
+		// TODO: implement perform_client_selection
+		//step_selected_ids = fl._perform_client_selection()
+	}
+	fl._round_selected_ids = step_selected_ids
+	return fl._global_model_parameters, fl._round_selected_ids
+}
+func flatten(input interface{}) []float64 {
+	var result []float64
+	flattenHelper(input, &result)
+	return result
+}
+func flattenHelper(input interface{}, result *[]float64) {
+	val := reflect.ValueOf(input)
+	switch val.Kind() {
+	case reflect.Slice:
+		for i := 0; i < val.Len(); i++ {
+			flattenHelper(val.Index(i).Interface(), result)
+		}
+	case reflect.Float64:
+		*result = append(*result, val.Interface().(float64))
+	default:
+		log.Printf("flattenHelper: unknown type %v\n", val.Kind())
+	}
+}
+func (s *FCMeansServer) process_server(round_mail_box string, experiment string, config_file string, client_responses []interface{}) {
+	log.Printf("Starting process_server ...")
+	log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
+
+	rand.Seed(time.Now().UnixNano())
+	const low = 2
+	const high = 4
+	time_to_sleep := low + rand.Float64()*(high-low)
+	time.Sleep(time.Duration(time_to_sleep) * time.Second)
+
+	log.Printf("start process_server, experiment = %s, round_mail_box = %s, len(client_responses) = %d\n", experiment, round_mail_box, len(client_responses))
+
+	var data [][]interface{}
+	for _, clientResponse := range client_responses {
+		clientResponseSlice, ok := clientResponse.([]interface{})
+		if !ok {
+			log.Printf("Error: clientResponse is not of type []interface{}")
+			continue
+		}
+		var decodedResult map[string]interface{}
+		decoder := pickle.NewDecoder(bytes.NewReader(clientResponseSlice[1].([]byte)))
+		decodedResult_tmp, err := decoder.Decode()
+		if err != nil {
+			panic(err)
+		}
+		decodedResult, ok = decodedResult_tmp.(map[string]interface{})
+		if !ok {
+			panic("Error: decodedResult is not of type map[string]interface{}")
+		}
+
+		responseData := []interface{}{clientResponseSlice[0], decodedResult}
+		data = append(data, responseData)
+	}
+
+	for i, d := range data {
+		log.Printf("i = %d, data[0] = %v", i, d[0])
+	}
+
+	var cl_resp [][]interface{}
+	for _, cr := range data {
+		cl_resp = append(cl_resp, cr[1].([]interface{}))
+	}
+
+	s.currentRound += 1
+	num_clients := len(client_responses)
+
+	uList := make([]float64, s.num_clusters)
+	wsList := make([][]float64, s.num_clusters)
+	for i := range wsList {
+		wsList[i] = make([]float64, s.num_features)
+	}
+
+	for client_idx := 0; client_idx < num_clients; client_idx++ {
+		response := client_responses[client_idx]
+		responseSlice, ok := response.([]interface{})
+		if !ok {
+			log.Printf("Error: response is not of type []interface{}")
+			continue
+		}
+		for i := 0; i < s.num_clusters; i++ {
+			var clientWs *mat.Dense
+			clientUs, ok := responseSlice[0].([]interface{})
+			if !ok {
+				log.Printf("Error: responseSlice[0] is not of type []interface{}")
+				continue
+			}
+			if ws, ok := responseSlice[i].(*mat.Dense); ok {
+				clientWs = ws
+			} else {
+				// Assuming clientWsSlice[i] is a 2D slice of float64
+				wsData, ok := responseSlice[i].([][]float64)
+				if !ok {
+					log.Printf("Error: clientWsSlice[%d] is not of type [][]float64", i)
+					continue
+				}
+				clientWs = mat.NewDense(len(wsData), len(wsData[0]), nil)
+				for rowIdx, row := range wsData {
+					for colIdx, val := range row {
+						clientWs.Set(rowIdx, colIdx, val)
+					}
+				}
+			}
+			clientU := clientUs[i].(float64)
+			uList[i] += clientU
+			for j := 0; j < clientWs.RawMatrix().Cols; j++ {
+				wsList[i][j] += clientWs.At(0, j)
+			}
+		}
+		var newClusterCenters [][]float64
+		prevClusterCenters := s.cluster_centers[len(s.cluster_centers)-1]
+
+		for i := 0; i < s.num_clusters; i++ {
+			u := uList[i]
+			ws := wsList[i]
+			var center []float64
+			if u == 0 {
+				center = prevClusterCenters[i]
+			} else {
+				center = make([]float64, len(ws))
+				for j := range ws {
+					center[j] = ws[j] / float64(u)
+				}
+			}
+			newClusterCenters = append(newClusterCenters, center)
+		}
+		s.FLExperiment._global_model_parameters = newClusterCenters
+		s.cluster_centers = append(s.cluster_centers, newClusterCenters)
+
+		data, _ := s.FLExperiment.get_step_data() // TODO add client ids
+		centersR := mat.NewDense(len(newClusterCenters), len(newClusterCenters[0]), flatten(newClusterCenters))
+		centersR1 := mat.NewDense(len(prevClusterCenters), len(prevClusterCenters[0]), flatten(prevClusterCenters))
+		diffMatrix := mat.NewDense(centersR.RawMatrix().Rows, centersR.RawMatrix().Cols, nil)
+		diffMatrix.Sub(centersR, centersR1)
+
+		v, _ := mem.VirtualMemory()
+		total_memory := v.Total
+		used_memory := v.Used
+		memory_usage_percentage := math.Round((float64(used_memory)/float64(total_memory))*100) / 100
+
+		cpu_percentages, _ := cpu.Percent(time.Second, false)
+
+		metricsMessage := map[string]interface{}{
+			"timestamp": time.Now().Unix(),
+			"round":     s.currentRound,
+			"hostMetrics": map[string]float64{
+				"cpuUsagePercentage":    cpu_percentages[0],
+				"memoryUsagePercentage": memory_usage_percentage,
+			},
+			"modelMetrics": map[string](mat.Matrix){
+				"FRO": diffMatrix,
+			},
+		}
+		var buffer bytes.Buffer
+
+		// Create a new encoder and encode the result
+		encoder := pickle.NewEncoder(&buffer)
+		if err := encoder.Encode(data); err != nil {
+			panic(err)
+		}
+		metricsMessageBytes, _ := json.Marshal(metricsMessage)
+		s.Process.Send(
+			gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name},
+			etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
+		)
+
+	}
+}
 func main() {
 	go_node_id := os.Args[1]         // go_c0ecdfb7-00f1-4270-8e46-d835bd00f153@127.0.0.1
 	erl_client_name := os.Args[2]    // director@127.0.0.1
