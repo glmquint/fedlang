@@ -277,25 +277,23 @@ func main() {
 		panic(err)
 	}
 
-	geserver := FedLangProcess{
-		erl_client_name:    erl_client_name,
-		erl_worker_mailbox: erl_worker_mailbox,
-	}
 	fcmeansserver := FCMeansServer{
-		FedLangProcess: &geserver,
+		FedLangProcess: &FedLangProcess{
+			erl_client_name:    erl_client_name,
+			erl_worker_mailbox: erl_worker_mailbox,
+		},
 	}
-	geserver.Callable = &fcmeansserver
+	fcmeansserver.FedLangProcess.Callable = &fcmeansserver
 
-	proc, err := node.Spawn(experiment_id, gen.ProcessOptions{}, &geserver)
+	fcmeansserver.Process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, fcmeansserver.FedLangProcess)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 		panic(err)
 	}
-	geserver.Process = proc
 
-	err = geserver.Process.Send(
+	err = fcmeansserver.Process.Send(
 		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("gorlang_node_ready"), geserver.Process.Info().PID, os.Getpid()},
+		etf.Tuple{etf.Atom("gorlang_node_ready"), fcmeansserver.Process.Info().PID, os.Getpid()},
 	)
 	if err != nil {
 		panic(err)
