@@ -236,7 +236,13 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 		log.Println("Error decoding:", err)
 		panic(err)
 	}
-	decodedResult = decodedResult_tmp.([][]float64)
+	for _, v := range decodedResult_tmp.([]interface{}) {
+		arr := make([]float64, 0)
+		for _, vv := range v.([]interface{}) {
+			arr = append(arr, vv.(float64))
+		}
+		decodedResult = append(decodedResult, arr)
+	}
 
 	log.Println("Deserialized data:", decodedResult)
 
