@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"math/rand"
 	"reflect"
 
+	"github.com/MacIt/pickle"
 	"github.com/ergo-services/ergo"
 	"github.com/ergo-services/ergo/etf"
 	"github.com/ergo-services/ergo/gen"
@@ -218,7 +218,7 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 
 	// Create a new encoder and encode the result
 	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
+	encoder := pickle.NewEncoder(&buffer)
 	if err := encoder.Encode(result); err != nil {
 		log.Fatal("Error encoding:", err)
 		panic(err)
@@ -230,17 +230,19 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 
 	//--------------------------------------
 	var decodedResult [][]float64
-	decoder := gob.NewDecoder(bytes.NewReader(tt))
-	if err := decoder.Decode(&decodedResult); err != nil {
+	decoder := pickle.NewDecoder(bytes.NewReader(tt))
+	decodedResult_tmp, err := decoder.Decode()
+	if err != nil {
 		log.Println("Error decoding:", err)
 		panic(err)
 	}
+	decodedResult = decodedResult_tmp.([][]float64)
 
 	log.Println("Deserialized data:", decodedResult)
 
 	//--------------------------------------
 
-	err := s.Process.Send(
+	err = s.Process.Send(
 		gen.ProcessID{Name: round_mail_box, Node: s.erl_client_name},
 		etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids},
 	)

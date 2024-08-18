@@ -1,6 +1,4 @@
+github.com/MacIt/pickle v1.0.0 h1:VCqez632s2Eyfd961Rrrg5+GhJaoKLOgKmI8ubQtKoc=
+github.com/MacIt/pickle v1.0.0/go.mod h1:EOEvPvwBOJJizIpuk+sizyJAh7KIehr+bdHWL2tg0NY=
 github.com/ergo-services/ergo v1.999.224 h1:2uLpB4+/yAO7dG9/jXeqTV5u8xunwFgbbQQOIJSen6g=
 github.com/ergo-services/ergo v1.999.224/go.mod h1:uXFQ+bMVZ6R3ygBrQSlaHtx1Bj+cINZo0A8CZ/WYqN4=
-github.com/nlpodyssey/gopickle v0.3.0 h1:BLUE5gxFLyyNOPzlXxt6GoHEMMxD0qhsE4p0CIQyoLw=
-github.com/nlpodyssey/gopickle v0.3.0/go.mod h1:f070HJ/yR+eLi5WmM1OXJEGaTpuJEUiib19olXgYha0=
-golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
-golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
