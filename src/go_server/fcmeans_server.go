@@ -39,6 +39,7 @@ func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result int
 		"init_server":    s.init_server,
 		"start_round":    s.start_round,
 		"process_server": s.process_server,
+		"finish":         s.finish,
 	}
 
 	log.Printf("funcname = %s, params = %v\n", funcName, params)
@@ -436,6 +437,12 @@ func (s *FCMeansServer) process_server(round_mail_box string, experiment string,
 
 	}
 }
+
+func (s *FCMeansServer) finish() {
+	log.Printf("DESTROY")
+	os.Exit(0)
+}
+
 func main() {
 	go_node_id := os.Args[1]         // go_c0ecdfb7-00f1-4270-8e46-d835bd00f153@127.0.0.1
 	erl_client_name := os.Args[2]    // director@127.0.0.1
