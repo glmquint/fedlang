@@ -42,7 +42,7 @@ func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result int
 		"finish":         s.finish,
 	}
 
-	log.Printf("funcname = %s, params = %v\n", funcName, params)
+	log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
 
 	f := reflect.ValueOf(StubStorage[funcName])
 	if len(params) != f.Type().NumIn() {
@@ -51,7 +51,7 @@ func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result int
 	}
 	in := make([]reflect.Value, len(params))
 	for k, param := range params {
-		log.Printf("param[%d] = %#v\n", k, param)
+		// log.Printf("param[%d] = %#v\n", k, param)
 		in[k] = reflect.ValueOf(param)
 	}
 	var res []reflect.Value
@@ -142,7 +142,7 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 			centers[i][j] = rand.Float64()
 		}
 	}
-	log.Printf("centers = %#v\n", centers)
+	// log.Printf("centers = %#v\n", centers)
 	s.num_clusters = n_clusters
 	s.num_features = n_features
 	cluster_centers := make([][][]float64, 0)
@@ -178,7 +178,7 @@ func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
 	log.Printf("atom = %#v\n", atom)
 	pid := s.Process.Info().PID
 	log.Printf("pid = %#v\n", pid)
-	log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
+	// log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
 	log.Printf("callsList = %#v\n", callsList)
 	msg := etf.Tuple{atom, pid, clientConfigurationStr, callsList}
 	log.Printf("sending message = %#v\n", msg)
@@ -212,13 +212,13 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 var startFlTime = time.Time{}
 
 func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_number int) {
-	log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
+	// log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
 	if startFlTime == (time.Time{}) {
 		startFlTime = time.Now()
 	}
 	log.Printf("start_fl_time = %#v\n", startFlTime)
 	result := s.FLExperiment._global_model_parameters
-	log.Printf("start round result = %#v\n", result)
+	// log.Printf("start round result = %#v\n", result)
 	client_ids := s.FLExperiment._client_ids
 	log.Printf("before sending result to (%#v, %#v)", s.erl_worker_mailbox, s.erl_client_name)
 
@@ -232,7 +232,7 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 
 	// The serialized data is now in buffer.Bytes()
 	tt := buffer.Bytes()
-	log.Println("Serialized data:", tt)
+	// log.Println("Serialized data:", tt)
 
 	//--------------------------------------
 	var decodedResult [][]float64
@@ -250,7 +250,7 @@ func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_num
 		decodedResult = append(decodedResult, arr)
 	}
 
-	log.Println("Deserialized data:", decodedResult)
+	// log.Println("Deserialized data:", decodedResult)
 
 	//--------------------------------------
 
@@ -297,15 +297,15 @@ func flattenHelper(input interface{}, result *[]float64) {
 }
 func (s *FCMeansServer) process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List) {
 	log.Printf("Starting process_server ...")
-	log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
+	// log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
 
 	rand.Seed(time.Now().UnixNano())
 	const low = 2
 	const high = 4
-	time_to_sleep := low + rand.Float64()*(high-low)
-	time.Sleep(time.Duration(time_to_sleep) * time.Second)
+	// time_to_sleep := low + rand.Float64()*(high-low)
+	// time.Sleep(time.Duration(time_to_sleep) * time.Second)
 
-	log.Printf("start process_server, experiment = %s, round_mail_box = %s, len(client_responses) = %d\n", experiment, round_mail_box, len(client_responses))
+	// log.Printf("start process_server, experiment = %s, round_mail_box = %s, len(client_responses) = %d\n", experiment, round_mail_box, len(client_responses))
 
 	type clientDataType struct {
 		clientId int
@@ -346,7 +346,7 @@ func (s *FCMeansServer) process_server(round_mail_box string, experiment string,
 	for _, cr := range data {
 		cl_resp = append(cl_resp, cr.result)
 	}
-	log.Printf("cl_resp = %#v\n", cl_resp)
+	// log.Printf("cl_resp = %#v\n", cl_resp)
 
 	s.currentRound += 1
 	num_clients := len(client_responses)
@@ -365,77 +365,77 @@ func (s *FCMeansServer) process_server(round_mail_box string, experiment string,
 		for i := 0; i < s.num_clusters; i++ {
 			var clientWs *mat.Dense
 			clientU := us[i].(float64)
-			log.Printf("clientU = %#v\n", clientU)
+			// log.Printf("clientU = %#v\n", clientU)
 			ws := wss[i].([]interface{})
-			log.Printf("ws = %#v\n", ws)
+			// log.Printf("ws = %#v\n", ws)
 			clientWs = mat.NewDense(1, len(ws), nil)
 			for j, w := range ws {
 				clientWs.Set(0, j, w.(float64))
 			}
-			log.Printf("clientWs = %#v\n", clientWs)
+			// log.Printf("clientWs = %#v\n", clientWs)
 			uList[i] += clientU
 			for j := 0; j < clientWs.RawMatrix().Cols; j++ {
 				wsList[i][j] += clientWs.At(0, j)
 			}
 		}
-		var newClusterCenters [][]float64
-		prevClusterCenters := s.cluster_centers[len(s.cluster_centers)-1]
-
-		for i := 0; i < s.num_clusters; i++ {
-			u := uList[i]
-			ws := wsList[i]
-			var center []float64
-			if u == 0 {
-				center = prevClusterCenters[i]
-			} else {
-				center = make([]float64, len(ws))
-				for j := range ws {
-					center[j] = ws[j] / float64(u)
-				}
-			}
-			newClusterCenters = append(newClusterCenters, center)
-		}
-		s.FLExperiment._global_model_parameters = newClusterCenters
-		s.cluster_centers = append(s.cluster_centers, newClusterCenters)
-
-		data, _ := s.FLExperiment.get_step_data() // TODO add client ids
-		centersR := mat.NewDense(len(newClusterCenters), len(newClusterCenters[0]), flatten(newClusterCenters))
-		centersR1 := mat.NewDense(len(prevClusterCenters), len(prevClusterCenters[0]), flatten(prevClusterCenters))
-		diffMatrix := mat.NewDense(centersR.RawMatrix().Rows, centersR.RawMatrix().Cols, nil)
-		diffMatrix.Sub(centersR, centersR1)
-
-		v, _ := mem.VirtualMemory()
-		total_memory := v.Total
-		used_memory := v.Used
-		memory_usage_percentage := math.Round((float64(used_memory)/float64(total_memory))*100) / 100
-
-		cpu_percentages, _ := cpu.Percent(time.Second, false)
-
-		metricsMessage := map[string]interface{}{
-			"timestamp": time.Now().Unix(),
-			"round":     s.currentRound,
-			"hostMetrics": map[string]float64{
-				"cpuUsagePercentage":    cpu_percentages[0],
-				"memoryUsagePercentage": memory_usage_percentage,
-			},
-			"modelMetrics": map[string](mat.Matrix){
-				"FRO": diffMatrix,
-			},
-		}
-		var buffer bytes.Buffer
-
-		// Create a new encoder and encode the result
-		encoder := pickle.NewEncoder(&buffer)
-		if err := encoder.Encode(data); err != nil {
-			panic(err)
-		}
-		metricsMessageBytes, _ := json.Marshal(metricsMessage)
-		s.Process.Send(
-			gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name},
-			etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
-		)
-
 	}
+	var newClusterCenters [][]float64
+	prevClusterCenters := s.cluster_centers[len(s.cluster_centers)-1]
+
+	for i := 0; i < s.num_clusters; i++ {
+		u := uList[i]
+		ws := wsList[i]
+		var center []float64
+		if u == 0 {
+			center = prevClusterCenters[i]
+		} else {
+			center = make([]float64, len(ws))
+			for j := range ws {
+				center[j] = ws[j] / float64(u)
+			}
+		}
+		newClusterCenters = append(newClusterCenters, center)
+	}
+	s.FLExperiment._global_model_parameters = newClusterCenters
+	s.cluster_centers = append(s.cluster_centers, newClusterCenters)
+
+	step_data, _ := s.FLExperiment.get_step_data() // TODO add client ids
+	centersR := mat.NewDense(len(newClusterCenters), len(newClusterCenters[0]), flatten(newClusterCenters))
+	centersR1 := mat.NewDense(len(prevClusterCenters), len(prevClusterCenters[0]), flatten(prevClusterCenters))
+	diffMatrix := mat.NewDense(centersR.RawMatrix().Rows, centersR.RawMatrix().Cols, nil)
+	diffMatrix.Sub(centersR, centersR1)
+
+	v, _ := mem.VirtualMemory()
+	total_memory := v.Total
+	used_memory := v.Used
+	memory_usage_percentage := math.Round((float64(used_memory)/float64(total_memory))*100) / 100
+
+	cpu_percentages, _ := cpu.Percent(time.Second, false)
+
+	metricsMessage := map[string]interface{}{
+		"timestamp": time.Now().Unix(),
+		"round":     s.currentRound,
+		"hostMetrics": map[string]float64{
+			"cpuUsagePercentage":    cpu_percentages[0],
+			"memoryUsagePercentage": memory_usage_percentage,
+		},
+		"modelMetrics": map[string](mat.Matrix){
+			"FRO": diffMatrix,
+		},
+	}
+	var buffer bytes.Buffer
+
+	// Create a new encoder and encode the result
+	encoder := pickle.NewEncoder(&buffer)
+	if err := encoder.Encode(step_data); err != nil {
+		panic(err)
+	}
+	metricsMessageBytes, _ := json.Marshal(metricsMessage)
+	s.Process.Send(
+		gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name},
+		etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
+	)
+
 }
 
 func (s *FCMeansServer) finish() {

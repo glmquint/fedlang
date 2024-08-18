@@ -44,7 +44,7 @@ func (s *FedLangProcess) HandleCall(process *gen.ServerProcess, from gen.ServerF
 
 // HandleInfo
 func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
-	log.Printf("[%s] HandleInfo: %#v\n", process.Name(), message)
+	log.Printf("[%s] HandleInfo: \n") //%#v\n", process.Name(), message)
 	switch message.(type) {
 	case etf.Atom:
 		switch message {
