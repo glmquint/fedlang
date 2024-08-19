@@ -486,7 +486,7 @@ func main() {
 
 	err = fcmeansserver.Process.Send(
 		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("gorlang_node_ready"), fcmeansserver.Process.Info().PID, os.Getpid()},
+		etf.Tuple{etf.Atom("node_ready"), fcmeansserver.Process.Info().PID, os.Getpid()},
 	)
 	if err != nil {
 		panic(err)

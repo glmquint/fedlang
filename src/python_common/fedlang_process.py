@@ -66,12 +66,14 @@ def start_process(class_to_instantiate: Type[TFedLangProcess],
     logger_info(f"node_name = {node_name}, erl_cookie = {cookie}")
     node = Node(node_name=node_name, cookie=cookie)
     event_loop = node.get_loop()
-    instance = class_to_instantiate(erl_client_name=client_name, erl_worker_mailbox=worker_mailbox)
+    instance = class_to_instantiate(
+        erl_client_name=client_name, erl_worker_mailbox=worker_mailbox)
     logger_info(f'type(instance) = {type(instance)}')
     logger_info(f'dir(instance) = {dir(instance)}')
+
     def task():
         node.send_nowait(sender=instance.pid_,
                          receiver=(Atom(client_name), Atom(worker_mailbox)),
-                         message=(Atom('pyrlang_node_ready'), instance.pid_, os.getpid()))
+                         message=(Atom('node_ready'), instance.pid_, os.getpid()))
     event_loop.call_soon(task)
     node.run()
