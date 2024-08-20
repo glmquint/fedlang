@@ -2,9 +2,32 @@ package main
 
 import (
 	"fcmeans/common"
+	"path/filepath"
+	"encoding/csv"
+	"log"
+	"math"
+	"math/rand"
+	"os"
+	"strconv"
+	"reflect"
+	"errors"
+	"github.com/ergo-services/ergo"
+	"github.com/ergo-services/ergo/etf"
+	"github.com/ergo-services/ergo/gen"
+	"github.com/ergo-services/ergo/node"
+	"encoding/json"
+
 )
 type FCMeansClient struct {
 	*common.FedLangProcess
+	factor_lambda float64
+	num_clients   int
+	target_feature string
+	X             [][]float64
+	y_true        []float64
+	rows          int
+	num_features  int
+	datasetName   string
 
 }
 type FLExperiment struct {
@@ -27,8 +50,78 @@ type FLExperiment struct {
 	experiment_history          interface{}
 	_latency_required           bool
 }
+type ExperimentConfig struct {
+	LambdaFactor  float64 `json:"lambdaFactor"`
+	NumClients    int     `json:"numClients"`
+	TargetFeature string  `json:"targetFeature"`
+	DatasetName   string  `json:"datasetName"`
+}
+func load_experiment_info(numClients int, targetFeature string, datasetName ...string) ([][]float64, []float64, string) {
+	basePath := filepath.Join(os.Getenv("PROJECT_PATH"), "datasets")
+	var datasetPath string
+	if len(datasetName) == 0 {
+		datasetPath = filepath.Join(basePath, "pendigits.csv")
+	} else {
+		datasetPath = filepath.Join(basePath, datasetName[0])
+	}
 
-func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
+	file, err := os.Open(datasetPath)
+	if err != nil {
+		log.Fatalf("Failed to open dataset file: %v", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		log.Fatalf("Failed to read dataset file: %v", err)
+	}
+
+	size := int(math.Ceil(float64(len(records)-1) / float64(numClients)))
+	log.Printf("dataset chunk size = %d", size)
+
+	header := records[0]
+	targetIndex := -1
+	for i, col := range header {
+		if col == targetFeature {
+			targetIndex = i
+			break
+		}
+	}
+	if targetIndex == -1 {
+		log.Fatalf("Target feature %s not found in dataset", targetFeature)
+	}
+
+	var dfX [][]float64
+	var yTrue []float64
+	for _, record := range records[1:] {
+		var row []float64
+		for i, value := range record {
+			val, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				log.Fatalf("Failed to parse value: %v", err)
+			}
+			if i == targetIndex {
+				yTrue = append(yTrue, val)
+			} else {
+				row = append(row, val)
+			}
+		}
+		dfX = append(dfX, row)
+	}
+
+	randomSamples := rand.Perm(len(dfX))[:size]
+	var values [][]float64
+	var yTrueSample []float64
+	for _, idx := range randomSamples {
+		values = append(values, dfX[idx])
+		yTrueSample = append(yTrueSample, yTrue[idx])
+	}
+
+	log.Printf("dataset chunk size = %d, X.shape = (%d, %d), y.shape = (%d)", size, len(dfX), len(dfX[0]), len(yTrueSample))
+	return values, yTrueSample, targetFeature
+}
+func (s *FCMeansClient) Call(funcName string, params ...interface{}) (result interface{}, err error) {
 	StubStorage := map[string]interface{}{
 		"init_client":    s.init_client,
 		"process_client": s.process_client,
@@ -57,7 +150,28 @@ func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result int
 	result = res[0].Interface()
 	return
 }
-func (f *FCMeansClient) init_client() {
+func (f *FCMeansClient) init_client(experiment,json_str_config string) {
+	var experimentConfig ExperimentConfig
+	err := json.Unmarshal([]byte(json_str_config), &experimentConfig)
+	if err != nil {
+		log.Fatalf("Error parsing JSON config: %v", err)
+	}
+
+	log.Printf("experiment = %s, experimentConfig = %+v", experiment, experimentConfig)
+
+	f.factor_lambda = experimentConfig.LambdaFactor
+	f.num_clients = experimentConfig.NumClients
+	f.target_feature = experimentConfig.TargetFeature
+	f.datasetName = experimentConfig.DatasetName
+
+	f.X, f.y_true, f.target_feature = load_experiment_info(f.num_clients, f.target_feature, f.datasetName)
+	f.rows, f.num_features = len(f.X), len(f.X[0])
+	f.Process.Send(
+		gen.ProcessID{Name: f.Erl_worker_mailbox, Node: f.Erl_client_name},
+		etf.Tuple{etf.Atom("fl_client_ready"), f.Process.Info().PID},
+	)
+
+	log.Printf("after sending (%s, %s)! (fl_client_ready)", f.Erl_worker_mailbox, f.Erl_client_name)
 }
 func (f *FCMeansClient) process_client() {
 }
