@@ -28,12 +28,42 @@ type FLExperiment struct {
 	_latency_required           bool
 }
 
+func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
+	StubStorage := map[string]interface{}{
+		"init_client":    s.init_client,
+		"process_client": s.process_client,
+		"destroy":         s.destroy,
+	}
+
+	log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
+
+	f := reflect.ValueOf(StubStorage[funcName])
+	if len(params) != f.Type().NumIn() {
+		err = errors.New("The number of params is out of index.")
+		return
+	}
+	in := make([]reflect.Value, len(params))
+	for k, param := range params {
+		// log.Printf("param[%d] = %#v\n", k, param)
+		in[k] = reflect.ValueOf(param)
+	}
+	var res []reflect.Value
+	log.Printf("Calling %#v with in_args %#v\n", f, in)
+	res = f.Call(in)
+	if len(res) == 0 {
+		err = nil
+		return
+	}
+	result = res[0].Interface()
+	return
+}
 func (f *FCMeansClient) init_client() {
-	f.FedLangProcess = common.NewFedLangProcess()
 }
 func (f *FCMeansClient) process_client() {
 }
 func (f *FCMeansClient) destroy() {
+	log.Printf("DESTROYYYY")
+	os.Exit(0)
 }
 
 func main() {
