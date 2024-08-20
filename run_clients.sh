@@ -9,6 +9,7 @@ export FL_SERVER_NAME=director@127.0.0.1
 export ERLLIBDIR=$PROJECT_PATH/Pyrlang/py.erl
 export FL_CLIENT_LOG_FOLDER=$PROJECT_PATH/logs
 export PYTHONPATH=$PYTHONPATH:$PROJECT_PATH/src
+export FL_CLIENT_GO_DIR=$PROJECT_PATH/src/go/client
 export FL_CLIENT_PY_DIR=$PROJECT_PATH/src/python_client
 export FL_COOKIE=cookie_123456789
 
