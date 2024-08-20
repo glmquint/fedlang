@@ -57,18 +57,15 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 	case etf.Tuple:
 		message_as_tuple, ok := message.(etf.Tuple)
 		if !ok {
-			log.Println("error: cannot cast message to Tuple")
-			return gen.ServerStatusIgnore
+			panic("error: cannot cast message to Tuple")
 		}
 		if len(message_as_tuple) < 2 {
-			log.Println("error: message_as_tuple is < 2")
-			return gen.ServerStatusIgnore
+			panic("error: message_as_tuple is < 2")
 		}
 		pid := message_as_tuple[0]
 		fun_name := fmt.Sprintf("%v", message_as_tuple[1])
 		if !ok {
-			log.Println("error: cannot cast message_as_tuple to string")
-			return gen.ServerStatusIgnore
+			panic("error: cannot cast message_as_tuple to string")
 		}
 		args := message_as_tuple[2:]
 		args_slice := make([]interface{}, len(args))
@@ -76,7 +73,12 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 			args_slice[i] = v
 		}
 		log.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
-		s.Callable.Call(fun_name, args_slice...)
+		result, err := s.Callable.Call(fun_name, args_slice...)
+		if err != nil {
+			log.Printf("error: %v\n", err)
+			panic(err)
+		}
+		log.Printf("result = %#v\n", result)
 	}
 	return gen.ServerStatusOK
 }

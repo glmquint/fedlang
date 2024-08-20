@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"reflect"
 
 	"fcmeans/common"
+
 	"github.com/MacIt/pickle"
 	"github.com/ergo-services/ergo"
 	"github.com/ergo-services/ergo/etf"
@@ -36,16 +38,15 @@ type FCMeansServer struct {
 }
 
 func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
-	StubStorage := map[string]interface{}{
-		"init_server":    s.init_server,
-		"start_round":    s.start_round,
-		"process_server": s.process_server,
-		"finish":         s.finish,
-	}
 
+	funcName = strings.ToUpper(funcName)
 	log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
 
-	f := reflect.ValueOf(StubStorage[funcName])
+	f := reflect.ValueOf(s).MethodByName(funcName)
+	if !f.IsValid() {
+		err = errors.New("The function is not valid.")
+		return
+	}
 	if len(params) != f.Type().NumIn() {
 		err = errors.New("The number of params is out of index.")
 		return
@@ -87,7 +88,7 @@ type FLExperiment struct {
 	_latency_required           bool
 }
 
-func (s *FCMeansServer) init_server(experiment, json_str_config, bb string) {
+func (s *FCMeansServer) INIT_SERVER(experiment, json_str_config, bb string) {
 	byteSlice := []byte(bb)
 	client_ids := make([]int, len(byteSlice))
 	for i, b := range byteSlice {
@@ -212,7 +213,7 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 
 var startFlTime = time.Time{}
 
-func (s *FCMeansServer) start_round(round_mail_box, experiment string, round_number int) {
+func (s *FCMeansServer) START_ROUND(round_mail_box, experiment string, round_number int) {
 	// log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
 	if startFlTime == (time.Time{}) {
 		startFlTime = time.Now()
@@ -285,7 +286,7 @@ func flatten(input [][]float64) []float64 {
 	}
 	return result
 }
-func (s *FCMeansServer) process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List) {
+func (s *FCMeansServer) PROCESS_SERVER(round_mail_box string, experiment string, config_file int, client_responses etf.List) {
 	log.Printf("Starting process_server ...")
 	// log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
 
@@ -428,7 +429,7 @@ func (s *FCMeansServer) process_server(round_mail_box string, experiment string,
 
 }
 
-func (s *FCMeansServer) finish() {
+func (s *FCMeansServer) FINISH() {
 	log.Printf("DESTROY")
 	os.Exit(0)
 }
