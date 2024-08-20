@@ -278,23 +278,12 @@ func (fl *FLExperiment) get_step_data() (interface{}, []int) {
 	fl._round_selected_ids = step_selected_ids
 	return fl._global_model_parameters, fl._round_selected_ids
 }
-func flatten(input interface{}) []float64 {
+func flatten(input [][]float64) []float64 {
 	var result []float64
-	flattenHelper(input, &result)
-	return result
-}
-func flattenHelper(input interface{}, result *[]float64) {
-	val := reflect.ValueOf(input)
-	switch val.Kind() {
-	case reflect.Slice:
-		for i := 0; i < val.Len(); i++ {
-			flattenHelper(val.Index(i).Interface(), result)
-		}
-	case reflect.Float64:
-		*result = append(*result, val.Interface().(float64))
-	default:
-		log.Printf("flattenHelper: unknown type %v\n", val.Kind())
+	for _, innerSlice := range input {
+		result = append(result, innerSlice...)
 	}
+	return result
 }
 func (s *FCMeansServer) process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List) {
 	log.Printf("Starting process_server ...")
