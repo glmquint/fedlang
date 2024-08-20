@@ -22,7 +22,7 @@ init_worker(ClientPID, ClientID, ClientName, StrategyServerPID, StatsNodePID, Ex
     create_python_client(PythonModule, PyNodeName, ClientName, WorkerMailBox, ExperimentId),
     io:format("------- WAITING pyrlang_node_ready ~p ~n", [ClientID]),
     receive
-        {pyrlang_node_ready, PyrlangNodePID, PythonOSPID} ->
+        {node_ready, PyrlangNodePID, PythonOSPID} ->
                 io:format("------- pyrlang_node_ready ~p ~n", [ClientID]),
                 PyrlangNodePID ! {self(), 'init_client', ExperimentId, ClientConfig},
                 step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
