@@ -5,28 +5,21 @@ import (
 	"log"
 	"math"
 	"os"
-	"strings"
 	"time"
 
 	"encoding/json"
-	"errors"
 	"math/rand"
-	"reflect"
 
 	"fcmeans/common"
 
 	"github.com/MacIt/pickle"
-	"github.com/ergo-services/ergo"
 	"github.com/ergo-services/ergo/etf"
-	"github.com/ergo-services/ergo/gen"
-	"github.com/ergo-services/ergo/node"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	"gonum.org/v1/gonum/mat"
 )
 
 type FCMeansServer struct {
-	*common.FedLangProcess
 	target_feature    int
 	max_number_rounds int
 	num_clusters      int
@@ -35,36 +28,6 @@ type FCMeansServer struct {
 	cluster_centers   [][][]float64
 	*FLExperiment
 	currentRound int
-}
-
-func (s *FCMeansServer) Call(funcName string, params ...interface{}) (result interface{}, err error) {
-
-	funcName = strings.ToUpper(funcName)
-	log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
-
-	f := reflect.ValueOf(s).MethodByName(funcName)
-	if !f.IsValid() {
-		err = errors.New("The function is not valid.")
-		return
-	}
-	if len(params) != f.Type().NumIn() {
-		err = errors.New("The number of params is out of index.")
-		return
-	}
-	in := make([]reflect.Value, len(params))
-	for k, param := range params {
-		// log.Printf("param[%d] = %#v\n", k, param)
-		in[k] = reflect.ValueOf(param)
-	}
-	var res []reflect.Value
-	log.Printf("Calling %#v with in_args %#v\n", f, in)
-	res = f.Call(in)
-	if len(res) == 0 {
-		err = nil
-		return
-	}
-	result = res[0].Interface()
-	return
 }
 
 type FLExperiment struct {
@@ -88,7 +51,7 @@ type FLExperiment struct {
 	_latency_required           bool
 }
 
-func (s *FCMeansServer) INIT_SERVER(experiment, json_str_config, bb string) {
+func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp *common.FedLangProcess) etf.Term {
 	byteSlice := []byte(bb)
 	client_ids := make([]int, len(byteSlice))
 	for i, b := range byteSlice {
@@ -178,21 +141,22 @@ func (s *FCMeansServer) INIT_SERVER(experiment, json_str_config, bb string) {
 	}
 	atom := etf.Atom("fl_server_ready")
 	log.Printf("atom = %#v\n", atom)
-	pid := s.Process.Info().PID
+	pid := fp.Process.Info().PID
 	log.Printf("pid = %#v\n", pid)
 	// log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
 	log.Printf("callsList = %#v\n", callsList)
 	msg := etf.Tuple{atom, pid, clientConfigurationStr, callsList}
 	log.Printf("sending message = %#v\n", msg)
-	err = s.Process.Send(
-		gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
-		msg,
-	)
-	if err != nil {
-		log.Fatalf("Error sending message: %v", err)
-		panic(err)
-	}
+	// err = s.Process.Send(
+	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
+	// 	msg,
+	// )
+	// if err != nil {
+	// 	log.Fatalf("Error sending message: %v", err)
+	// 	panic(err)
+	// }
 	log.Printf("message sent = %#v\n", msg)
+	return msg
 }
 
 func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte, float64, int, []etf.Tuple) {
@@ -213,7 +177,7 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 
 var startFlTime = time.Time{}
 
-func (s *FCMeansServer) START_ROUND(round_mail_box, experiment string, round_number int) {
+func (s *FCMeansServer) Start_round(round_mail_box, experiment string, round_number int, fp *common.FedLangProcess) etf.Term {
 	// log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
 	if startFlTime == (time.Time{}) {
 		startFlTime = time.Now()
@@ -222,7 +186,7 @@ func (s *FCMeansServer) START_ROUND(round_mail_box, experiment string, round_num
 	result := s.FLExperiment._global_model_parameters
 	// log.Printf("start round result = %#v\n", result)
 	client_ids := s.FLExperiment._client_ids
-	log.Printf("before sending result to (%#v, %#v)", s.Erl_worker_mailbox, s.Erl_client_name)
+	// log.Printf("before sending result to (%#v, %#v)", s.Erl_worker_mailbox, s.Erl_client_name)
 
 	// Create a new encoder and encode the result
 	var buffer bytes.Buffer
@@ -256,15 +220,16 @@ func (s *FCMeansServer) START_ROUND(round_mail_box, experiment string, round_num
 
 	//--------------------------------------
 
-	err = s.Process.Send(
-		gen.ProcessID{Name: round_mail_box, Node: s.Erl_client_name},
-		etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids},
-	)
-	if err != nil {
-		panic(err)
-	}
+	// err = s.Process.Send(
+	// 	gen.ProcessID{Name: round_mail_box, Node: s.Erl_client_name},
+	// 	etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids},
+	// )
+	// if err != nil {
+	// 	panic(err)
+	// }
+	return etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids}
 
-	log.Printf("after sending (%#v, %#v) ! (start_round_ok)", s.Erl_worker_mailbox, s.Erl_client_name)
+	// log.Printf("after sending (%#v, %#v) ! (start_round_ok)", s.erl_worker_mailbox, s.Erl_client_name)
 }
 
 func (fl *FLExperiment) get_step_data() (interface{}, []int) {
@@ -286,7 +251,8 @@ func flatten(input [][]float64) []float64 {
 	}
 	return result
 }
-func (s *FCMeansServer) PROCESS_SERVER(round_mail_box string, experiment string, config_file int, client_responses etf.List) {
+
+func (s *FCMeansServer) Process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List, fp *common.FedLangProcess) etf.Term {
 	log.Printf("Starting process_server ...")
 	// log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
 
@@ -422,14 +388,14 @@ func (s *FCMeansServer) PROCESS_SERVER(round_mail_box string, experiment string,
 		panic(err)
 	}
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
-	s.Process.Send(
-		gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
-		etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
-	)
-
+	// s.Process.Send(
+	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
+	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
+	// )
+	return etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes}
 }
 
-func (s *FCMeansServer) FINISH() {
+func (s *FCMeansServer) Finish(fp *common.FedLangProcess) {
 	log.Printf("DESTROY")
 	os.Exit(0)
 }
@@ -454,34 +420,5 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(os.Stdout)
 
-	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-		panic(err)
-	}
-
-	fcmeansserver := FCMeansServer{
-		FedLangProcess: &common.FedLangProcess{
-			Erl_client_name:    erl_client_name,
-			Erl_worker_mailbox: erl_worker_mailbox,
-		},
-	}
-	fcmeansserver.FedLangProcess.Callable = &fcmeansserver
-
-	fcmeansserver.Process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, fcmeansserver.FedLangProcess)
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-		panic(err)
-	}
-
-	err = fcmeansserver.Process.Send(
-		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("node_ready"), fcmeansserver.Process.Info().PID, os.Getpid()},
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	node.Wait()
-	log.Printf("FCMeansServer terminated\n")
+	common.StartProcess[FCMeansServer](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id)
 }
