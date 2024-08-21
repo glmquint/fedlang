@@ -157,7 +157,7 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	*/
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
 }
-func (f *FCMeansClient) Process_client(expertiment FLExperiment, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
+func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
 	//data := nil
 	// load the data from pickle format
 	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
@@ -184,8 +184,8 @@ func (f *FCMeansClient) Process_client(expertiment FLExperiment, round_number in
 	}
 
 	// Initialize variables
-	numClusters := len(centers.RawMatrix().Data)
-	numObjects := len(f.X) //pls use more meaningful names
+	numClusters := centers.ColView(0).Len() // TODO: check if we numCluster is over rows instead of columns
+	numObjects := len(f.X)                  //pls use more meaningful names
 	factorLambda := f.factor_lambda
 	numFeatures := f.num_features
 
@@ -197,7 +197,6 @@ func (f *FCMeansClient) Process_client(expertiment FLExperiment, round_number in
 		denom := 0.0
 		numer := make([]float64, numClusters)
 		x := f.X[i]
-		//log.Printf("x = %v\n", x)
 		for j := 0; j < numClusters; j++ {
 			vc := centers.RawRowView(j)
 			numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
