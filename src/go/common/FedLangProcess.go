@@ -21,8 +21,6 @@ type FedLangProcess struct {
 	Callable
 }
 
-type Callable interface{}
-
 func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
 	log.Printf("[%s] Terminating process with reason %q", process.Name(), reason)
 }
@@ -66,7 +64,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 
 		f := reflect.ValueOf(s.Callable).MethodByName(funcName)
 		if !f.IsValid() {
-			panic("The function is not valid.")
+			panic("The function is not valid. Must be exported (starts with a capital letter).")
 		}
 		if len(args_slice) != f.Type().NumIn() {
 			panic("The number of params is out of index.")
@@ -90,7 +88,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 	return gen.ServerStatusOK
 }
 
-func StartProcess[T Callable](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id string) {
+func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id string) {
 	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
 	if err != nil {
 		log.Fatalf("Error: %v", err)
