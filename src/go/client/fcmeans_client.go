@@ -227,10 +227,9 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	for i := 0; i < numClusters; i++ {
 		wsSlice[i] = ws.RawRowView(i)
 	}
-	// TODO: This map could not be the correct way of doing this
-	data := map[string]interface{}{
-		"u":  u.RawVector().Data,
-		"ws": wsSlice,
+	data := pickle.Tuple{
+		u.RawVector().Data,
+		wsSlice,
 	}
 
 	// Reinitialize u to a 2D slice with zeros
