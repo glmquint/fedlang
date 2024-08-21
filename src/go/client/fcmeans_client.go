@@ -22,7 +22,7 @@ type FCMeansClient struct {
 	*common.FedLangProcess
 	factor_lambda float64
 	num_clients   int
-	target_feature string
+	target_feature int
 	X             [][]float64
 	y_true        []float64
 	rows          int
@@ -53,18 +53,19 @@ type FLExperiment struct {
 type ExperimentConfig struct {
 	LambdaFactor  float64 `json:"lambdaFactor"`
 	NumClients    int     `json:"numClients"`
-	TargetFeature string  `json:"targetFeature"`
+	TargetFeature int  `json:"targetFeature"`
 	DatasetName   string  `json:"datasetName"`
 }
-func load_experiment_info(numClients int, targetFeature string, datasetName ...string) ([][]float64, []float64, string) {
+func load_experiment_info(numClients int, targetFeature int, datasetName ...string) ([][]float64, []float64, int) {
 	basePath := filepath.Join(os.Getenv("PROJECT_PATH"), "datasets")
 	var datasetPath string
-	if len(datasetName) == 0 {
+	//log.Printf("datasetName = %#v len = %d", datasetName, len(datasetName))
+	if len(datasetName) <= 1 {
 		datasetPath = filepath.Join(basePath, "pendigits.csv")
 	} else {
 		datasetPath = filepath.Join(basePath, datasetName[0])
 	}
-
+	log.Printf("dataset path = %s", datasetPath)
 	file, err := os.Open(datasetPath)
 	if err != nil {
 		log.Fatalf("Failed to open dataset file: %v", err)
@@ -83,7 +84,7 @@ func load_experiment_info(numClients int, targetFeature string, datasetName ...s
 	header := records[0]
 	targetIndex := -1
 	for i, col := range header {
-		if col == targetFeature {
+		if col == strconv.Itoa(targetFeature) {
 			targetIndex = i
 			break
 		}
@@ -150,9 +151,10 @@ func (s *FCMeansClient) Call(funcName string, params ...interface{}) (result int
 	result = res[0].Interface()
 	return
 }
-func (f *FCMeansClient) init_client(experiment,json_str_config string) {
+func (f *FCMeansClient) init_client(experiment string,json_str_config []byte) {
+	//log.Printf("experiment = %#v json_str_config = %#v\n", experiment, json_str_config)
 	var experimentConfig ExperimentConfig
-	err := json.Unmarshal([]byte(json_str_config), &experimentConfig)
+	err := json.Unmarshal(json_str_config, &experimentConfig)
 	if err != nil {
 		log.Fatalf("Error parsing JSON config: %v", err)
 	}
@@ -229,7 +231,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
 	node.Wait()
 	log.Printf("fcmeansclient terminated\n")
 
