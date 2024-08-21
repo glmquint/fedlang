@@ -7,6 +7,8 @@ import (
 	"fcmeans/common"
 	"github.com/MacIt/pickle"
 	"github.com/ergo-services/ergo/etf"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 	"gonum.org/v1/gonum/mat"
 	"log"
 	"math"
@@ -14,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 )
 
 type FCMeansClient struct {
@@ -154,8 +157,9 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	*/
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
 }
-func (f *FCMeansClient) process_client(expertiment FLExperiment, round_number int, centers_param []byte) {
+func (f *FCMeansClient) Process_client(expertiment FLExperiment, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
 	//data := nil
+	// load the data from pickle format
 	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
 	var centers_list [][]float64
 	decoder := pickle.NewDecoder(bytes.NewReader(centers_param))
@@ -173,34 +177,137 @@ func (f *FCMeansClient) process_client(expertiment FLExperiment, round_number in
 	}
 	log.Printf("centers_list = %v\n", centers_list)
 
+	// Convert centers to a matrix
 	centers := mat.NewDense(len(centers_list), len(centers_list[0]), nil)
 	for i := 0; i < len(centers_list); i++ {
 		centers.SetRow(i, centers_list[i])
 	}
-	//array of size 10
-	dataFrame_STUB := make([][]float64, 10)
-	factorLambda_STUB := 0.1
-	// TODO: this is a stub, need to implement the actual logic and types
+
+	// Initialize variables
 	numClusters := len(centers.RawMatrix().Data)
-	numObjects := len(dataFrame_STUB) // Assuming X is defined elsewhere
-	factorLambda := factorLambda_STUB // Assuming factorLambda is defined elsewhere
-	numFeatures := centers.RawMatrix().Cols
+	numObjects := len(f.X) //pls use more meaningful names
+	factorLambda := f.factor_lambda
+	numFeatures := f.num_features
 
 	// Initialize ws and u slices
 	ws := mat.NewDense(numClusters, numFeatures, nil)
 	u := mat.NewVecDense(numClusters, nil)
 
-	for i := 0; i < numFeatures; i++ {
+	for i := 0; i < numObjects; i++ {
 		denom := 0.0
-		numer := [0]*numClusters
-		x = dataFrame_STUB[i]
-		// TODO: continue with the translation
-		//for j := 0; j < numClusters; j++ {
-
-		//}
+		numer := make([]float64, numClusters)
+		x := f.X[i]
+		//log.Printf("x = %v\n", x)
+		for j := 0; j < numClusters; j++ {
+			vc := centers.RawRowView(j)
+			numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
+			if numer[j] == 0 {
+				numer[j] = 1e-10 // TODO: this is not the correct translation check it
+			}
+			denom += (1 + numer[j])
+		}
+		for j := 0; j < numClusters; j++ {
+			u_c_i := math.Pow((numer[j] * denom), -1)
+			//ws[c] = ws[c] + (u_c_i ** factor_lambda) * x
+			for k := 0; k < numFeatures; k++ {
+				// the illness of this single line of code is beyond me
+				// set the element at row j and column k to the sum of the
+				// element at row j and column k and the product of the
+				// element x[k] and the power of u_c_i to factorLambda
+				// also does not return anything the panic is inside the function
+				ws.Set(j, k, ws.At(j, k)+(math.Pow(u_c_i, factorLambda)*x[k]))
+			}
+			//u[c] = u[c] + (u_c_i ** factor_lambda)
+			// Similar to the above line, set the element at index j to the
+			// sum of the element at index j and the power of u_c_i to factorLambda
+			u.SetVec(j, u.AtVec(j)+math.Pow(u_c_i, factorLambda))
+		}
+	}
+	// Convert ws to a slice of slices and store data in a tuple
+	wsSlice := make([][]float64, numClusters)
+	for i := 0; i < numClusters; i++ {
+		wsSlice[i] = ws.RawRowView(i)
+	}
+	// TODO: This map could not be the correct way of doing this
+	data := map[string]interface{}{
+		"u":  u.RawVector().Data,
+		"ws": wsSlice,
 	}
 
+	// Reinitialize u to a 2D slice with zeros
+	uMatrix := make([][]float64, numClusters)
+	for i := range uMatrix {
+		uMatrix[i] = make([]float64, numObjects)
+	}
+
+	for i := 0; i < numObjects; i++ {
+		denom := 0.0
+		numer := make([]float64, numObjects)
+		x := f.X[i]
+		for j := 0; j < numClusters; j++ {
+			vc := centers.RawRowView(j)
+			numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
+			if numer[j] == 0 {
+				numer[j] = 1e-10 // TODO: his is not the correct translation check it
+			}
+			denom += (1 / numer[j])
+		}
+		for j := 0; j < numClusters; j++ {
+			u_c_i := math.Pow((numer[j] * denom), -1)
+			uMatrix[j][i] = u_c_i
+		}
+	}
+	// u = np.asarray(u).T
+	uMatrixT := make([][]float64, numObjects)
+	for i := range uMatrixT {
+		uMatrixT[i] = make([]float64, numClusters)
+	}
+	//y_pred = np.argmax(u, 1)
+	y_pred := make([]float64, numObjects)
+	for i := 0; i < numObjects; i++ {
+		max := 0.0
+		for j := 0; j < numClusters; j++ {
+			if uMatrix[j][i] > max {
+				max = uMatrix[j][i]
+				y_pred[i] = float64(j)
+			}
+		}
+	}
+	// create a stub ARI score
+	ari_client := 0
+	v, _ := mem.VirtualMemory()
+	total_memory := v.Total
+	used_memory := v.Used
+	memory_usage_percentage := math.Round((float64(used_memory)/float64(total_memory))*100) / 100
+
+	cpu_percentages, _ := cpu.Percent(time.Second, false)
+
+	metricsMessage := map[string]interface{}{
+		"timestamp": time.Now().Unix(),
+		"round":     round_number,
+		"clientId":  fp.Process.Info().PID,
+		"hostMetrics": map[string]float64{
+			"cpuUsagePercentage":    cpu_percentages[0],
+			"memoryUsagePercentage": memory_usage_percentage,
+		},
+		"modelMetrics": map[string](float64){
+			"ARI": float64(ari_client),
+		},
+	}
+	var buffer bytes.Buffer
+	encoder := pickle.NewEncoder(&buffer)
+	if err := encoder.Encode(data); err != nil {
+		panic(err)
+	}
+	metricsMessageBytes, _ := json.Marshal(metricsMessage)
+	// s.Process.Send(
+	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
+	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
+	// )
+	log.Printf("end process_client, data = %v, metricsMessage = %v\n", data, metricsMessage)
+	return etf.Tuple{etf.Atom("fl_py_result"), buffer.Bytes(), metricsMessageBytes}
 }
+
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
 	log.Printf("DESTROYYYY")
 	os.Exit(0)
