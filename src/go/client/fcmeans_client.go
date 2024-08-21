@@ -56,6 +56,17 @@ type ExperimentConfig struct {
 	TargetFeature int  `json:"targetFeature"`
 	DatasetName   string  `json:"datasetName"`
 }
+
+func distance_fn(A [][]float64) float64 {
+	var sum float64
+	for i := range A {
+		for j := range A[i] {
+			sum += A[i][j] * A[i][j]
+		}
+	}
+	return math.Sqrt(sum)
+}
+
 func load_experiment_info(numClients int, targetFeature int, datasetName ...string) ([][]float64, []float64, int) {
 	basePath := filepath.Join(os.Getenv("PROJECT_PATH"), "datasets")
 	var datasetPath string
