@@ -23,26 +23,8 @@ type FedLangProcess struct {
 
 type Callable interface{}
 
-func (s *FedLangProcess) HandleCast(process *gen.ServerProcess, message etf.Term) gen.ServerStatus {
-
-	log.Printf("[%s] HandleCast: %#v\n", process.Name(), message)
-	switch message {
-	case etf.Atom("stop"):
-		return gen.ServerStatusStopWithReason("stop they said")
-	}
-	return gen.ServerStatusOK
-}
-
-func (s *FedLangProcess) HandleCall(process *gen.ServerProcess, from gen.ServerFrom, message etf.Term) (etf.Term, gen.ServerStatus) {
-	log.Printf("[%s] HandleCall: %#v, From: %s\n", process.Name(), message, from.Pid)
-
-	switch message.(type) {
-	case etf.Atom:
-		return "hello", gen.ServerStatusOK
-
-	default:
-		return message, gen.ServerStatusIgnore
-	}
+func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
+	log.Printf("[%s] Terminating process with reason %q", process.Name(), reason)
 }
 
 // HandleInfo
@@ -108,10 +90,6 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 	return gen.ServerStatusOK
 }
 
-func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
-	log.Printf("[%s] Terminating process with reason %q", process.Name(), reason)
-}
-
 func StartProcess[T Callable](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id string) {
 	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
 	if err != nil {
@@ -128,7 +106,6 @@ func StartProcess[T Callable](go_node_id, erl_cookie, erl_client_name, erl_worke
 	// 		erl_client_name:    erl_client_name,
 	// 		erl_worker_mailbox: erl_worker_mailbox,
 	// 	},
-	// }
 
 	fedlangprocess.Process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &fedlangprocess)
 	if err != nil {
