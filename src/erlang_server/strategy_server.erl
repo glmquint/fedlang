@@ -58,7 +58,7 @@ send_stats_message(StatsNodePID, MessageToBeSent) ->
     StatsNodeMessage = lists:flatten(io_lib:format(MessageToBeSent, [UnixTime])),
     StatsNodePID ! {fl_message, StatsNodeMessage}.
 
-create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, CodeLanguage) ->
+create_server(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, CodeLanguage) ->
     Cookie = os:getenv("FL_COOKIE"),
     case CodeLanguage of
       python ->
@@ -89,7 +89,7 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
         ServerModule = Algorithm ++ "_server",
         io:format("Algorithm, ServerModule: ~p, ~p ~n", [Algorithm, ServerModule]),
         ServerNodeName = lists:flatten(io_lib:format("server_~s@127.0.0.1",[ExperimentID])),
-        create_client(ExperimentID, ServerModule, ServerNodeName, NodeName, NodeMailBox, CodeLanguage),
+        create_server(ExperimentID, ServerModule, ServerNodeName, NodeName, NodeMailBox, CodeLanguage),
         ClientIDs = [ID || {ID,_} <- Clients],
         receive
             {node_ready, ServerPid, ServerOSPID} ->

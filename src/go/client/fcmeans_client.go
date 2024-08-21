@@ -151,9 +151,9 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	*/
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
 }
-func (f *FCMeansClient) Process_client() {
+func (f *FCMeansClient) Process_client(fp common.FedLangProcess) {
 }
-func (f *FCMeansClient) Destroy() {
+func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
 	log.Printf("DESTROYYYY")
 	os.Exit(0)
 }

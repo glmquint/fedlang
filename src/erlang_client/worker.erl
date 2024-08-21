@@ -18,32 +18,20 @@ create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
   end,
   io:format(S),
   spawn(fun() -> os:cmd(S) end).
-create_python_client(PythonModule, PyNodeName, WorkerName, WorkerMailBox, ExperimentId) ->
-    Cookie = os:getenv("FL_COOKIE"),
-    PythonScriptDir = os:getenv("FL_CLIENT_PY_DIR"),
-    io:format("python3 ~s/~s.py ~s ~s ~s ~s ~s ~n", [PythonScriptDir, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentId]),
-    S = io_lib:format("python3 -u ~s/~s.py ~s ~s ~s ~s ~s", [PythonScriptDir, PythonModule, PyNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentId]),
-    spawn(fun() -> os:cmd(S) end).
-create_go_client(GoModule, GoNodeName, WorkerName, WorkerMailBox, ExperimentId) ->
-    Cookie = os:getenv("FL_COOKIE"),
-    GoScriptDir = os:getenv("FL_CLIENT_GO_DIR"),
-    io:format("go run ~s/~s.go ~s ~s ~s ~s ~s ~n", [GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentId]),
-    S = io_lib:format("go run ~s/~s.go ~s ~s ~s ~s ~s", [GoScriptDir, GoModule, GoNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentId]),
-    spawn(fun() -> os:cmd(S) end).
 
 init_worker(ClientPID, ClientID, ClientName, StrategyServerPID, StatsNodePID, ExperimentId, Algorithm, CodeLanguage, ClientConfig) ->
-    PythonModule = Algorithm ++ "_client",
+    ClientModule = Algorithm ++ "_client",
     io:format("Starting Worker for experiment: ~p, StrategyServerPID: ~p. ~n", [ExperimentId, StrategyServerPID]),
-    io:format("PythonModule: ~p ~n", [PythonModule]),
+    io:format("ClientModule: ~p ~n", [ClientModule]),
     io:format("CLIENT ~p, mboxworker_~p ~n", [ClientID, ClientID]),
     WorkerMailBox = lists:flatten(io_lib:format("mboxworker_~s",[ExperimentId])),
-    PyNodeName = lists:flatten(io_lib:format("py_~p_~s@127.0.0.1",[ClientID, ExperimentId])),
+    PyNodeName = lists:flatten(io_lib:format("client_~p_~s@127.0.0.1",[ClientID, ExperimentId])),
     register(list_to_atom(WorkerMailBox), self()),
-    create_client(ExperimentId, PythonModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage),
-    io:format("------- WAITING pyrlang_node_ready ~p ~n", [ClientID]),
+    create_client(ExperimentId, ClientModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage),
+    io:format("------- WAITING node_ready ~p ~n", [ClientID]),
     receive
         {node_ready, PyrlangNodePID, PythonOSPID} ->
-                io:format("------- pyrlang_node_ready ~p ~n", [ClientID]),
+                io:format("------- node_ready ~p ~n", [ClientID]),
                 PyrlangNodePID ! {self(), 'init_client', ExperimentId, ClientConfig},
                 step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
         T ->
