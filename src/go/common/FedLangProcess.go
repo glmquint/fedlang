@@ -18,7 +18,7 @@ type FedLangProcess struct {
 	gen.Process
 	erl_client_name    string
 	erl_worker_mailbox string
-	Callable
+	federated_actor    any
 }
 
 func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
@@ -62,7 +62,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 		funcName := strings.ToUpper(string(fun_name[0])) + fun_name[1:]
 		log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
 
-		f := reflect.ValueOf(s.Callable).MethodByName(funcName)
+		f := reflect.ValueOf(s.federated_actor).MethodByName(funcName)
 		if !f.IsValid() {
 			panic("The function is not valid. Must be exported (starts with a capital letter).")
 		}
@@ -98,7 +98,7 @@ func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mai
 	fedlangprocess := FedLangProcess{
 		erl_client_name:    erl_client_name,
 		erl_worker_mailbox: erl_worker_mailbox,
-		Callable:           new(T),
+		federated_actor:    new(T),
 	}
 	// 	FedLangProcess: &FedLangProcess{
 	// 		erl_client_name:    erl_client_name,
