@@ -1,34 +1,27 @@
 package main
 
 import (
-	"fcmeans/common"
-	"path/filepath"
 	"encoding/csv"
+	"encoding/json"
+	"fcmeans/common"
+	"github.com/ergo-services/ergo/etf"
 	"log"
 	"math"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strconv"
-	"reflect"
-	"errors"
-	"github.com/ergo-services/ergo"
-	"github.com/ergo-services/ergo/etf"
-	"github.com/ergo-services/ergo/gen"
-	"github.com/ergo-services/ergo/node"
-	"encoding/json"
-
 )
-type FCMeansClient struct {
-	*common.FedLangProcess
-	factor_lambda float64
-	num_clients   int
-	target_feature int
-	X             [][]float64
-	y_true        []float64
-	rows          int
-	num_features  int
-	datasetName   string
 
+type FCMeansClient struct {
+	factor_lambda  float64
+	num_clients    int
+	target_feature int
+	X              [][]float64
+	y_true         []float64
+	rows           int
+	num_features   int
+	datasetName    string
 }
 type FLExperiment struct {
 	_global_model_parameters    [][]float64
@@ -53,7 +46,7 @@ type FLExperiment struct {
 type ExperimentConfig struct {
 	LambdaFactor  float64 `json:"lambdaFactor"`
 	NumClients    int     `json:"numClients"`
-	TargetFeature int  `json:"targetFeature"`
+	TargetFeature int     `json:"targetFeature"`
 	DatasetName   string  `json:"datasetName"`
 }
 
@@ -133,36 +126,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 	log.Printf("dataset chunk size = %d, X.shape = (%d, %d), y.shape = (%d)", size, len(dfX), len(dfX[0]), len(yTrueSample))
 	return values, yTrueSample, targetFeature
 }
-func (s *FCMeansClient) Call(funcName string, params ...interface{}) (result interface{}, err error) {
-	StubStorage := map[string]interface{}{
-		"init_client":    s.init_client,
-		"process_client": s.process_client,
-		"destroy":         s.destroy,
-	}
-
-	log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
-
-	f := reflect.ValueOf(StubStorage[funcName])
-	if len(params) != f.Type().NumIn() {
-		err = errors.New("The number of params is out of index.")
-		return
-	}
-	in := make([]reflect.Value, len(params))
-	for k, param := range params {
-		// log.Printf("param[%d] = %#v\n", k, param)
-		in[k] = reflect.ValueOf(param)
-	}
-	var res []reflect.Value
-	log.Printf("Calling %#v with in_args %#v\n", f, in)
-	res = f.Call(in)
-	if len(res) == 0 {
-		err = nil
-		return
-	}
-	result = res[0].Interface()
-	return
-}
-func (f *FCMeansClient) init_client(experiment string,json_str_config []byte) {
+func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, fp common.FedLangProcess) etf.Term {
 	//log.Printf("experiment = %#v json_str_config = %#v\n", experiment, json_str_config)
 	var experimentConfig ExperimentConfig
 	err := json.Unmarshal(json_str_config, &experimentConfig)
@@ -179,16 +143,17 @@ func (f *FCMeansClient) init_client(experiment string,json_str_config []byte) {
 
 	f.X, f.y_true, f.target_feature = load_experiment_info(f.num_clients, f.target_feature, f.datasetName)
 	f.rows, f.num_features = len(f.X), len(f.X[0])
-	f.Process.Send(
-		gen.ProcessID{Name: f.Erl_worker_mailbox, Node: f.Erl_client_name},
-		etf.Tuple{etf.Atom("fl_client_ready"), f.Process.Info().PID},
-	)
-
-	log.Printf("after sending (%s, %s)! (fl_client_ready)", f.Erl_worker_mailbox, f.Erl_client_name)
+	/*
+		f.Process.Send(
+			gen.ProcessID{Name: f.Erl_worker_mailbox, Node: f.Erl_client_name},
+			etf.Tuple{etf.Atom("fl_client_ready"), f.Process.Info().PID},
+		)
+	*/
+	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
 }
-func (f *FCMeansClient) process_client() {
+func (f *FCMeansClient) Process_client() {
 }
-func (f *FCMeansClient) destroy() {
+func (f *FCMeansClient) Destroy() {
 	log.Printf("DESTROYYYY")
 	os.Exit(0)
 }
@@ -215,34 +180,5 @@ func main() {
 	defer logFile.Close()
 	log.SetOutput(os.Stdout)
 
-	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-		panic(err)
-	}
-
-	fcmeansclient := FCMeansClient{
-		FedLangProcess: &common.FedLangProcess{
-			Erl_client_name:    erl_client_name,
-			Erl_worker_mailbox: erl_worker_mailbox,
-		},
-	}
-	fcmeansclient.FedLangProcess.Callable = &fcmeansclient
-
-	fcmeansclient.Process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, fcmeansclient.FedLangProcess)
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-		panic(err)
-	}
-
-	err = fcmeansclient.Process.Send(
-		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("node_ready"), fcmeansclient.Process.Info().PID, os.Getpid()},
-	)
-	if err != nil {
-		panic(err)
-	}
-	node.Wait()
-	log.Printf("fcmeansclient terminated\n")
-
+	common.StartProcess[FCMeansClient](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id)
 }
