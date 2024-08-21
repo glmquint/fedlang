@@ -51,7 +51,7 @@ type FLExperiment struct {
 	_latency_required           bool
 }
 
-func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp *common.FedLangProcess) etf.Term {
+func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp common.FedLangProcess) etf.Term {
 	byteSlice := []byte(bb)
 	client_ids := make([]int, len(byteSlice))
 	for i, b := range byteSlice {
@@ -177,7 +177,7 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 
 var startFlTime = time.Time{}
 
-func (s *FCMeansServer) Start_round(round_mail_box, experiment string, round_number int, fp *common.FedLangProcess) etf.Term {
+func (s *FCMeansServer) Start_round(round_mail_box, experiment string, round_number int, fp common.FedLangProcess) etf.Term {
 	// log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
 	if startFlTime == (time.Time{}) {
 		startFlTime = time.Now()
@@ -252,7 +252,7 @@ func flatten(input [][]float64) []float64 {
 	return result
 }
 
-func (s *FCMeansServer) Process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List, fp *common.FedLangProcess) etf.Term {
+func (s *FCMeansServer) Process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List, fp common.FedLangProcess) etf.Term {
 	log.Printf("Starting process_server ...")
 	// log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
 
@@ -395,7 +395,7 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 	return etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes}
 }
 
-func (s *FCMeansServer) Finish(fp *common.FedLangProcess) {
+func (s *FCMeansServer) Finish(fp common.FedLangProcess) {
 	log.Printf("DESTROY")
 	os.Exit(0)
 }

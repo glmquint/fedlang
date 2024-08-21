@@ -75,7 +75,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 		for i, v := range args {
 			args_slice[i] = v
 		}
-		args_slice[len(args)] = s
+		args_slice[len(args)] = *s
 		log.Printf("sender = %#v, fun_name = %#v\n", pid, fun_name)
 		// result, err := s.Callable.Call(fun_name, args_slice...)
 
