@@ -238,8 +238,7 @@ func (fl *FLExperiment) get_step_data() (interface{}, []int) {
 		step_selected_ids = fl._round_selected_ids
 	} else {
 		// TODO: implement perform_client_selection
-		//step_selected_ids = fl._perform_client_selection()
-		panic("Not implemented")
+		step_selected_ids = fl.perform_client_selection()
 	}
 	fl._round_selected_ids = step_selected_ids
 	return fl._global_model_parameters, fl._round_selected_ids
@@ -250,6 +249,10 @@ func flatten(input [][]float64) []float64 {
 		result = append(result, innerSlice...)
 	}
 	return result
+}
+
+func (fl *FLExperiment) perform_client_selection() []int {
+	return []int{1, 2, 3}
 }
 
 func (s *FCMeansServer) Process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List, fp common.FedLangProcess) etf.Term {
