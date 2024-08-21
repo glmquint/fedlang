@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fcmeans/common"
+	"github.com/MacIt/pickle"
 	"github.com/ergo-services/ergo/etf"
+	"gonum.org/v1/gonum/mat"
 	"log"
 	"math"
 	"math/rand"
@@ -151,7 +154,52 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	*/
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
 }
-func (f *FCMeansClient) Process_client(fp common.FedLangProcess) {
+func (f *FCMeansClient) process_client(expertiment FLExperiment, round_number int, centers_param []byte) {
+	//data := nil
+	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
+	var centers_list [][]float64
+	decoder := pickle.NewDecoder(bytes.NewReader(centers_param))
+	decodedResult_tmp, err := decoder.Decode()
+	if err != nil {
+		log.Println("Error decoding:", err)
+		panic(err)
+	}
+	for _, v := range decodedResult_tmp.([]interface{}) {
+		arr := make([]float64, 0)
+		for _, vv := range v.([]interface{}) {
+			arr = append(arr, vv.(float64))
+		}
+		centers_list = append(centers_list, arr)
+	}
+	log.Printf("centers_list = %v\n", centers_list)
+
+	centers := mat.NewDense(len(centers_list), len(centers_list[0]), nil)
+	for i := 0; i < len(centers_list); i++ {
+		centers.SetRow(i, centers_list[i])
+	}
+	//array of size 10
+	dataFrame_STUB := make([][]float64, 10)
+	factorLambda_STUB := 0.1
+	// TODO: this is a stub, need to implement the actual logic and types
+	numClusters := len(centers.RawMatrix().Data)
+	numObjects := len(dataFrame_STUB) // Assuming X is defined elsewhere
+	factorLambda := factorLambda_STUB // Assuming factorLambda is defined elsewhere
+	numFeatures := centers.RawMatrix().Cols
+
+	// Initialize ws and u slices
+	ws := mat.NewDense(numClusters, numFeatures, nil)
+	u := mat.NewVecDense(numClusters, nil)
+
+	for i := 0; i < numFeatures; i++ {
+		denom := 0.0
+		numer := [0]*numClusters
+		x = dataFrame_STUB[i]
+		// TODO: continue with the translation
+		//for j := 0; j < numClusters; j++ {
+
+		//}
+	}
+
 }
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
 	log.Printf("DESTROYYYY")
