@@ -69,7 +69,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 	} else {
 		datasetPath = filepath.Join(basePath, datasetName[0])
 	}
-	log.Printf("dataset path = %s", datasetPath)
+	log.Printf("dataset path = %s\n", datasetPath)
 	file, err := os.Open(datasetPath)
 	if err != nil {
 		log.Fatalf("Failed to open dataset file: %v", err)
@@ -83,7 +83,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 	}
 
 	size := int(math.Ceil(float64(len(records)-1) / float64(numClients)))
-	log.Printf("dataset chunk size = %d", size)
+	log.Printf("dataset chunk size = %d\n", size)
 
 	header := records[0]
 	targetIndex := -1
@@ -123,7 +123,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 		yTrueSample = append(yTrueSample, yTrue[idx])
 	}
 
-	log.Printf("dataset chunk size = %d, X.shape = (%d, %d), y.shape = (%d)", size, len(dfX), len(dfX[0]), len(yTrueSample))
+	log.Printf("dataset chunk size = %d, X.shape = (%d, %d), y.shape = (%d)\n", size, len(dfX), len(dfX[0]), len(yTrueSample))
 	return values, yTrueSample, targetFeature
 }
 func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, fp common.FedLangProcess) etf.Term {
@@ -134,7 +134,7 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 		log.Fatalf("Error parsing JSON config: %v", err)
 	}
 
-	log.Printf("experiment = %s, experimentConfig = %+v", experiment, experimentConfig)
+	log.Printf("experiment = %s, experimentConfig = %+v\n", experiment, experimentConfig)
 
 	f.factor_lambda = experimentConfig.LambdaFactor
 	f.num_clients = experimentConfig.NumClients
