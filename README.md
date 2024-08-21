@@ -19,5 +19,5 @@ docker compose run --rm fedlang bash
 ```
 
 ```bash
-CGO_ENABLED=0 go build -C src/go/server -o fcmeans_server && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh 1
+CGO_ENABLED=0 go build -C src/go/client/ -o fcmeans_client && CGO_ENABLED=0 go build -C src/go/server/ -o fcmeans_server && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh 1
 ```
