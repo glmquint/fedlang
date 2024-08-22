@@ -4,7 +4,7 @@
 -author('José Luis Corcuera Bárcena <joseluis.corcuera@phd.unipi.it>').
 -export([init_worker/9]).
 
-create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, CodeLanguage) ->
+create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, CodeLanguage, ClientID) ->
   Cookie = os:getenv("FL_COOKIE"),
   case CodeLanguage of
     python ->
@@ -13,7 +13,7 @@ create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
     go ->
       GoScriptDir = os:getenv("FL_CLIENT_GO_DIR"),
       io:format(GoScriptDir),
-      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
+      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output_~p",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID, ClientID]);
     _ -> S = "echo Unsupported language"
   end,
   io:format(S),
@@ -27,7 +27,7 @@ init_worker(ClientPID, ClientID, ClientName, StrategyServerPID, StatsNodePID, Ex
     WorkerMailBox = lists:flatten(io_lib:format("mboxworker_~s",[ExperimentId])),
     PyNodeName = lists:flatten(io_lib:format("client_~p_~s@127.0.0.1",[ClientID, ExperimentId])),
     register(list_to_atom(WorkerMailBox), self()),
-    create_client(ExperimentId, ClientModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage),
+    create_client(ExperimentId, ClientModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage, ClientID),
     io:format("------- WAITING node_ready ~p ~n", [ClientID]),
     receive
         {node_ready, PyrlangNodePID, PythonOSPID} ->
