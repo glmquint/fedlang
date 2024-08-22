@@ -13,7 +13,8 @@ trap cleanup EXIT
 tmux new-session -d -s fedlang_containers
 
 # Run the director container in the first pane
-tmux send-keys -t fedlang_containers "docker compose up director; sleep 1" C-m
+tmux send-keys -t fedlang_containers "docker compose up director" C-m
+sleep 1
 
 # Split the window horizontally and run the client0 container
 tmux split-window -h
@@ -22,12 +23,13 @@ tmux send-keys "docker compose up client0" C-m
 # Split the first pane vertically and run the client1 container
 tmux select-pane -t 0
 tmux split-window -v
-tmux send-keys "docker compose up client1; sleep 1" C-m
+tmux send-keys "docker compose up client1" C-m
+sleep 1
 
 # Split the original pane vertically and run the server container
 tmux select-pane -t 2
 tmux split-window -v
-tmux send-keys "docker compose up server" C-m
+tmux send-keys "docker compose up stats_node" C-m
 
 # Adjust the layout to tiled to fit all panes
 tmux select-layout tiled

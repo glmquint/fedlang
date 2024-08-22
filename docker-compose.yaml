@@ -32,9 +32,9 @@ services:
     command: >
       /bin/bash -c "pipenv run sh run_clients.sh 1 1; read"
 
-  server:
+  stats_node:
     image: fedlang
-    container_name: server
+    container_name: stats_node
     networks:
       fednet:
         ipv4_address: 172.19.0.5
