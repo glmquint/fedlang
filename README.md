@@ -14,13 +14,15 @@ git clone https://github.com/Pyrlang/Pyrlang.git && git clone https://github.com
 ```bash
 mkdir stats logs
 ```
- ```bash
-docker compose run --rm fedlang bash
+
+### Usage
+
+#### create docker network
+```bash
+docker network rm fednet; docker network create --subnet 172.19.0.0/16 fednet
 ```
 
+#### launch distributed nodes
 ```bash
-CGO_ENABLED=0 go build -C src/go/client/ -o fcmeans_client && CGO_ENABLED=0 go build -C src/go/server/ -o fcmeans_server && docker run -v .:/app/fedlang -it --rm fedlang ./start.sh 1
-```
-```bash
-docker network rm fednet; docker network create --subnet 172.19.0.0/16 fednet && ./start_distributed.sh 
+CGO_ENABLED=0 go build -C src/go/client/ -o fcmeans_client && CGO_ENABLED=0 go build -C src/go/server/ -o fcmeans_server && ./start_distributed.sh go
 ```
