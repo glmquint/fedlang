@@ -9,7 +9,8 @@ export FL_DIRECTOR_GO_DIR=$PROJECT_PATH/src/go/server
 export FL_DIRECTOR_CONFIG_DIR=$PROJECT_PATH/configs/server
 export FL_COOKIE=cookie_123456789
 export FL_DIRECTOR_MBOX=mboxDirector
-export FL_DIRECTOR_NAME=director@127.0.0.1
+export FL_DIRECTOR_IP=$(hostname -I | awk '{print $1}')
+export FL_DIRECTOR_NAME=director@$FL_DIRECTOR_IP
 export PYTHONPATH=$PYTHONPATH:$PROJECT_PATH/src
 
 export METRIC_FILE="$PROJECT_PATH/stats/memory_by_method_col_strategy.log"

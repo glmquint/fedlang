@@ -16,7 +16,7 @@ for i in `seq $FL_CLIENT_ID_START $FL_CLIENT_ID_END`; do
 	echo "FL_CLIENT_ID: $FL_CLIENT_ID"
 	eval "export FL_CLIENT_MBOX=node_client$i"
 	echo "FL_CLIENT_MBOX: $FL_CLIENT_MBOX"
-	eval "export FL_CLIENT_NAME=client$i@127.0.0.1"
+  eval "export FL_CLIENT_NAME=client$i@172.19.0.$((i+3))"
 	echo "FL_CLIENT_NAME: $FL_CLIENT_NAME"
 	eval 'export METRIC_FILE="$PROJECT_PATH/stats/memory_by_method_col_${i}_${RUN}.log"'
 	if [ $i = $FL_CLIENT_ID_END ];

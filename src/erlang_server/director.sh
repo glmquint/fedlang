@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export MYIP=$(hostname -i)
+export FL_DIRECTOR_IP=$(hostname -I | awk '{print $1}')
 export RUN=$(date '+%Y%m%d%H%M')
 export FL_CLIENT_ID="-1"
 export PROJECT_PATH="/app"
@@ -14,6 +14,7 @@ export METRIC_FILE="$PROJECT_PATH/stats/memory_by_method_col_strategy.log"
 export RUNTIME_FILE="$PROJECT_PATH/stats/runtime_by_method_col_strategy.log"
 
 echo "CURRENT PATH: ${PROJECT_PATH}"
+echo "FL_DIRECTOR_IP: $FL_DIRECTOR_IP"
 erlc $PROJECT_PATH/src/erlang_server/*.erl
 epmd -daemon
 sleep 10

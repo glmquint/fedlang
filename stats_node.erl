@@ -23,8 +23,8 @@ receive_stats() ->
 
 test0() ->
     run_and_monitor(
-      "mboxDirector", 
-      "director@127.0.0.1", 
+      "mboxDirector",
+      "director@172.19.0.2",
       {
        "fcmeans", python, 1, 1, 2, "max_number_rounds", none, 10, 
         "{
@@ -49,7 +49,7 @@ test0() ->
 test1() ->
     run_and_monitor(
       "mboxDirector", 
-      "director@127.0.0.1", 
+      "director@172.19.0.2",
       {
        "fcmeans", go, 1, 1, 2, "max_number_rounds", none, 10, 
         "{
