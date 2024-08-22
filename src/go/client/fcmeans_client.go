@@ -151,12 +151,34 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	*/
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
 }
-func (f *FCMeansClient) Process_client(fp common.FedLangProcess) {
+func (f *FCMeansClient) Process_client(uno string, dos int, tre []byte, fp common.FedLangProcess) {
+	log.Printf("Process_client")
+	// convert os.Getenv("FL_CLIENT_ID") to int
+	id, err := strconv.Atoi(os.Getenv("FL_CLIENT_ID"))
+	if err != nil {
+		log.Fatalf("Failed to convert FL_CLIENT_ID to int: %v", err)
+		id = 0
+	}
+	other_id := (id + 1) % 2
+	msg := etf.Tuple{fp.Process.Info().PID, etf.Atom("custom_fun"), "Hello from " + os.Getenv("FL_CLIENT_ID")}
+	fp.Process.Send(fp.Clients[other_id], msg)
+	log.Printf("message to other peer sent = %#v\n", msg)
 }
+
+func (f *FCMeansClient) Custom_fun(other_pid string, fp common.FedLangProcess) {
+	log.Printf("Custom_fun: %#v\n", os.Getenv("FL_CLIENT_ID"))
+	log.Printf("received message = %#v\n", other_pid)
+}
+
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
 	log.Printf("DESTROYYYY")
 	os.Exit(0)
 }
+
+// func (f *FCMeansClient) Update_graph(clients etf.Term, fp common.FedLangProcess) {
+// 	log.Printf("Update_graph")
+// 	log.Printf("clients = %#v\n", clients)
+// }
 
 func main() {
 

@@ -19,6 +19,7 @@ type FedLangProcess struct {
 	erl_client_name    string
 	erl_worker_mailbox string
 	federated_actor    any
+	Clients            map[int]etf.Pid
 }
 
 func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
@@ -92,6 +93,18 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 	return gen.ServerStatusOK
 }
 
+func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) {
+	log.Printf("Update_graph: %#v\n", clients)
+	clients_list := clients.(etf.List)
+	for _, client := range clients_list {
+		client := client.(etf.Tuple)
+		client_id := client[0].(int)
+		client_pid := client[2].(etf.Pid)
+		s.Clients[client_id] = client_pid
+	}
+	log.Printf("graph updated: clients = %#v\n", s.Clients)
+}
+
 func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id string) {
 	node, err := ergo.StartNode(go_node_id, erl_cookie, node.Options{})
 	if err != nil {
@@ -103,6 +116,7 @@ func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mai
 		erl_client_name:    erl_client_name,
 		erl_worker_mailbox: erl_worker_mailbox,
 		federated_actor:    new(T),
+		Clients:            make(map[int]etf.Pid),
 	}
 	// 	FedLangProcess: &FedLangProcess{
 	// 		erl_client_name:    erl_client_name,

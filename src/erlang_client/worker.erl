@@ -49,7 +49,7 @@ step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, St
                 UnixTime1 = MegaSecs1 * 1000000 + Secs1,
                 StatsMsg1 = lists:flatten(io_lib:format("{\"timestamp\":~p,\"type\":\"worker_ready\",\"client_id\":~p}", [UnixTime1, ClientID])),
                 StatsNodePID ! {fl_message, StatsMsg1},
-                StrategyServerPID ! {fl_worker_ready, ClientPID, self()},
+                StrategyServerPID ! {fl_worker_ready, ClientPID, self(), PyrlangNodePID},
                 step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
         {fl_next_round_step, RoundPID, Params, CurrentRound, FunctionName} ->
                 io:format("Round ~p, ClientID ~p, step ~p, in execution ~n", [CurrentRound, ClientID, FunctionName]),
