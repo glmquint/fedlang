@@ -24,7 +24,7 @@ tmux send-keys "docker compose up client0" C-m
 tmux select-pane -t 0
 tmux split-window -v
 tmux send-keys "docker compose up client1" C-m
-sleep 1
+sleep 2
 
 # Split the original pane vertically and run the server container
 tmux select-pane -t 2
