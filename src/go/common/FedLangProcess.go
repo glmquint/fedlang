@@ -64,10 +64,14 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 
 		f := reflect.ValueOf(s.federated_actor).MethodByName(funcName)
 		if !f.IsValid() {
-			panic("The function is not valid. Must be exported (starts with a capital letter).")
+			log.Printf("Function %s is not valid. Trying to find it in the FedLangProcess\n", funcName)
+			f = reflect.ValueOf(s).MethodByName(funcName)
+			if !f.IsValid() {
+				panic("The function is not valid. Must be exported (starts with a capital letter).")
+			}
 		}
 		if len(args_slice) != f.Type().NumIn() {
-			panic("The number of params is out of index.")
+			panic("The number of params is out of index. Got " + string(len(args_slice)) + " but expected " + string(f.Type().NumIn()))
 		}
 		in := make([]reflect.Value, len(args_slice))
 		for k, param := range args_slice {
