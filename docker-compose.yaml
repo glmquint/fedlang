@@ -32,9 +32,20 @@ services:
     command: >
       /bin/bash -c "pipenv run sh run_clients.sh 1 1; read"
 
-  stats_node:
+  stats_node_py:
     image: fedlang
-    container_name: stats_node
+    container_name: stats_node_py
+    networks:
+      fednet:
+        ipv4_address: 172.19.0.5
+    volumes:
+      - .:/app/fedlang
+    command: >
+      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test0 -s init stop; read"
+
+  stats_node_go:
+    image: fedlang
+    container_name: stats_node_go
     networks:
       fednet:
         ipv4_address: 172.19.0.5

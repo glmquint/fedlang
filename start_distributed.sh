@@ -29,7 +29,7 @@ sleep 2
 # Split the original pane vertically and run the server container
 tmux select-pane -t 2
 tmux split-window -v
-tmux send-keys "docker compose up stats_node" C-m
+tmux send-keys "docker compose up stats_node_$1" C-m
 
 # Adjust the layout to tiled to fit all panes
 tmux select-layout tiled
