@@ -21,11 +21,13 @@ create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
 
 init_worker(ClientPID, ClientID, ClientName, StrategyServerPID, StatsNodePID, ExperimentId, Algorithm, CodeLanguage, ClientConfig) ->
     ClientModule = Algorithm ++ "_client",
+    ClientIP = os:getenv("FL_CLIENT_IP"),
+    io:format("ClientIP: ~p ~n", [ClientIP]),
     io:format("Starting Worker for experiment: ~p, StrategyServerPID: ~p. ~n", [ExperimentId, StrategyServerPID]),
     io:format("ClientModule: ~p ~n", [ClientModule]),
     io:format("CLIENT ~p, mboxworker_~p ~n", [ClientID, ClientID]),
     WorkerMailBox = lists:flatten(io_lib:format("mboxworker_~s",[ExperimentId])),
-    PyNodeName = lists:flatten(io_lib:format("client_~p_~s@127.0.0.1",[ClientID, ExperimentId])),
+    PyNodeName = lists:flatten(io_lib:format("client_~p_~s@~s",[ClientID, ExperimentId, ClientIP])),
     register(list_to_atom(WorkerMailBox), self()),
     create_client(ExperimentId, ClientModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage),
     io:format("------- WAITING node_ready ~p ~n", [ClientID]),

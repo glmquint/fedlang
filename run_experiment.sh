@@ -25,13 +25,13 @@ for i in `seq $1 $2`; do
 	echo "Starting client $i"
 	eval "export FL_CLIENT_ID=$i"
 	eval "export FL_CLIENT_MBOX=node_client$i"
-	eval "export FL_CLIENT_NAME=client$i@127.0.0.1"
+  eval "export FL_CLIENT_NAME=client$i@172.19.0.$((i+3))"
 	eval 'export METRIC_FILE="./stats/memory_by_method_col_${i}_${RUN}.log"'
 	export FL_COOKIE=cookie_123456789
 	export FL_CLIENT_PY_DIR=$PROJECT_PATH/src/python_client
 	eval "export FL_CLIENT_CONFIG_DIR=$PROJECT_PATH/configs/client$i"
 	export FL_SERVER_MBOX=mboxDirector
-	export FL_SERVER_NAME=director@127.0.0.1
+	export FL_SERVER_NAME=director@172.19.0.2
   erl -noshell -name $FL_CLIENT_NAME -setcookie $FL_COOKIE -s client main -kernel prevent_overlapping_partitions false &
 done
 

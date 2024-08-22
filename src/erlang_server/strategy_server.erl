@@ -87,8 +87,9 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
     register(list_to_atom(NodeMailBox), self()),
     %MYIP = os:getenv("MYIP"),
         ServerModule = Algorithm ++ "_server",
-        io:format("Algorithm, ServerModule: ~p, ~p ~n", [Algorithm, ServerModule]),
-        ServerNodeName = lists:flatten(io_lib:format("server_~s@127.0.0.1",[ExperimentID])),
+        FL_SERVER_IP = os:getenv("FL_DIRECTOR_IP"),
+        io:format("Algorithm, ServerModule: ~p, ~p ~p ~n", [Algorithm, ServerModule,FL_SERVER_IP]),
+        ServerNodeName = lists:flatten(io_lib:format("server_~s@~p",[ExperimentID,FL_SERVER_IP])),
         create_server(ExperimentID, ServerModule, ServerNodeName, NodeName, NodeMailBox, CodeLanguage),
         ClientIDs = [ID || {ID,_} <- Clients],
         receive
