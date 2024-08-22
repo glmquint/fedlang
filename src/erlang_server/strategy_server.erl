@@ -107,6 +107,7 @@ init_strategy_server(DirectorPID, ExperimentID, Clients, ExperimentDataDescripto
         ClientsFLPIDs_tmp = [receive { fl_worker_ready, ClientPID, FLPID, PyerlangPID } -> {ClientID, FLPID, PyerlangPID} end || {ClientID, ClientPID} <- Clients],
         io:format("ClientsFLPIDs: ~p ~n", [ClientsFLPIDs_tmp]),
         lists:map(fun({_, _, PyerlangPID}) -> PyerlangPID ! { self(), update_graph, ClientsFLPIDs_tmp} end, ClientsFLPIDs_tmp),
+        [receive graph_updated -> ok end || {_, _, _} <- ClientsFLPIDs_tmp],
         ClientsFLPIDs = [{ClientID, FLPID} || {ClientID, FLPID, _} <- ClientsFLPIDs_tmp],
         send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"strategy_server_ready\"}"),
         send_stats_message(StatsNodePID, "{\"timestamp\":~p,\"type\":\"all_workers_ready\"}"),

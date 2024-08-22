@@ -15,11 +15,12 @@ import (
 
 type FedLangProcess struct {
 	gen.Server
-	gen.Process
+	process            gen.Process
+	Own_pid            etf.Pid
 	erl_client_name    string
 	erl_worker_mailbox string
 	federated_actor    any
-	Clients            map[int]etf.Pid
+	clients            map[int]etf.Pid
 }
 
 func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
@@ -63,10 +64,11 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 		funcName := strings.ToUpper(string(fun_name[0])) + fun_name[1:]
 		log.Printf("funcname = %s\n", funcName) // = %v\n", funcName, params)
 
-		f := reflect.ValueOf(s.federated_actor).MethodByName(funcName)
+		// TODO: consider inverting those checks
+		f := reflect.ValueOf(s).MethodByName(funcName)
 		if !f.IsValid() {
 			log.Printf("Function %s is not valid. Trying to find it in the FedLangProcess\n", funcName)
-			f = reflect.ValueOf(s).MethodByName(funcName)
+			f = reflect.ValueOf(s.federated_actor).MethodByName(funcName)
 			if !f.IsValid() {
 				panic("The function is not valid. Must be exported (starts with a capital letter).")
 			}
@@ -87,22 +89,36 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 		}
 		result := res[0].Interface()
 		log.Printf("result = %#v\n", result)
-		s.Process.Send(gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name}, result)
+		// s.process.Send(gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name}, result)
+		s.process.Send(pid, result)
 		log.Printf("result sent\n")
 	}
 	return gen.ServerStatusOK
 }
 
-func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) {
+func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) etf.Term {
 	log.Printf("Update_graph: %#v\n", clients)
 	clients_list := clients.(etf.List)
 	for _, client := range clients_list {
 		client := client.(etf.Tuple)
 		client_id := client[0].(int)
 		client_pid := client[2].(etf.Pid)
-		s.Clients[client_id] = client_pid
+		s.clients[client_id] = client_pid
 	}
-	log.Printf("graph updated: clients = %#v\n", s.Clients)
+	log.Printf("graph updated: clients = %#v\n", s.clients)
+	return etf.Atom("graph_updated")
+}
+
+func (s *FedLangProcess) PeerSend(peer_id int, function string, args ...interface{}) {
+	log.Printf("PeerSend: peer_id = %d, function = %s, args = %#v\n", peer_id, function, args)
+	peer_pid := s.clients[peer_id]
+	msg := etf.Tuple{s.Own_pid, etf.Atom(function), args}
+	err := s.process.Send(peer_pid, msg)
+	if err != nil {
+		log.Printf("peer_pid = %#v\n", peer_pid)
+		panic(err)
+	}
+	log.Printf("message to peer %d sent = %#v\n", peer_id, msg)
 }
 
 func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id string) {
@@ -116,22 +132,23 @@ func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mai
 		erl_client_name:    erl_client_name,
 		erl_worker_mailbox: erl_worker_mailbox,
 		federated_actor:    new(T),
-		Clients:            make(map[int]etf.Pid),
+		clients:            make(map[int]etf.Pid),
 	}
 	// 	FedLangProcess: &FedLangProcess{
 	// 		erl_client_name:    erl_client_name,
 	// 		erl_worker_mailbox: erl_worker_mailbox,
 	// 	},
 
-	fedlangprocess.Process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &fedlangprocess)
+	fedlangprocess.process, err = node.Spawn(experiment_id, gen.ProcessOptions{}, &fedlangprocess)
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 		panic(err)
 	}
+	fedlangprocess.Own_pid = fedlangprocess.process.Info().PID
 
-	err = fedlangprocess.Process.Send(
+	err = fedlangprocess.process.Send(
 		gen.ProcessID{Name: erl_worker_mailbox, Node: erl_client_name},
-		etf.Tuple{etf.Atom("node_ready"), fedlangprocess.Process.Info().PID, os.Getpid()},
+		etf.Tuple{etf.Atom("node_ready"), fedlangprocess.process.Info().PID, os.Getpid()},
 	)
 	if err != nil {
 		panic(err)

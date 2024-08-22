@@ -149,7 +149,7 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 			etf.Tuple{etf.Atom("fl_client_ready"), f.Process.Info().PID},
 		)
 	*/
-	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
+	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Own_pid}
 }
 func (f *FCMeansClient) Process_client(uno string, dos int, tre []byte, fp common.FedLangProcess) {
 	log.Printf("Process_client")
@@ -160,14 +160,13 @@ func (f *FCMeansClient) Process_client(uno string, dos int, tre []byte, fp commo
 		id = 0
 	}
 	other_id := (id + 1) % 2
-	msg := etf.Tuple{fp.Process.Info().PID, etf.Atom("custom_fun"), "Hello from " + os.Getenv("FL_CLIENT_ID")}
-	fp.Process.Send(fp.Clients[other_id], msg)
-	log.Printf("message to other peer sent = %#v\n", msg)
+	fp.PeerSend(other_id, "custom_fun", "Hello from "+os.Getenv("FL_CLIENT_ID"))
+	log.Printf("message to other peer sent = %#v\n", "Hello from "+os.Getenv("FL_CLIENT_ID"))
 }
 
-func (f *FCMeansClient) Custom_fun(other_pid string, fp common.FedLangProcess) {
+func (f *FCMeansClient) Custom_fun(other_msg interface{}, fp common.FedLangProcess) {
 	log.Printf("Custom_fun: %#v\n", os.Getenv("FL_CLIENT_ID"))
-	log.Printf("received message = %#v\n", other_pid)
+	log.Printf("received message = %#v\n", other_msg)
 }
 
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
