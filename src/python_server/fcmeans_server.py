@@ -107,7 +107,7 @@ class FCMeansServerProcess(FedLangProcess):
         start_time = timer()
         try:
             time_to_sleep = np.random.uniform(2, 4)
-            time.sleep(time_to_sleep)
+            #time.sleep(time_to_sleep)
             logger_info(f"start process_server, experiment = {experiment}, round_mail_box = {round_mail_box}, len(client_responses) = {len(client_responses)}")
             data = [(client_response[0], cPickle.loads(bytes(client_response[1]))) for client_response in
                     client_responses]
