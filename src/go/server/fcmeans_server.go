@@ -305,32 +305,23 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		wsList[i] = make([]float64, s.num_features)
 	}
 
-	clientChan := make(chan struct {
+	type indexedUWS struct {
 		i  int
 		u  float64
 		ws []float64
-	}, num_clients*s.num_clusters)
+	}
+	clientChan := make(chan indexedUWS, num_clients*s.num_clusters)
 
-	var wg1 sync.WaitGroup
 	// Process client data and update cluster centers in parallel
 	for client_idx := 0; client_idx < num_clients; client_idx++ {
-		wg1.Add(1)
-		go func(client_idx int, clientChan chan struct {
-			i  int
-			u  float64
-			ws []float64
-		}) {
-			defer wg1.Done()
+		wg.Add(1)
+		go func(client_idx int, clientChan chan indexedUWS) {
+			defer wg.Done()
 			response := data[client_idx].result
 			us := response[0].([]float64)
 			wss := response[1].([][]float64)
 			for i := 0; i < s.num_clusters; i++ {
-				log.Printf("Processing client %d cluster %d", client_idx, i)
-				clientChan <- struct {
-					i  int
-					u  float64
-					ws []float64
-				}{
+				clientChan <- indexedUWS{
 					i:  i,
 					u:  us[i],
 					ws: wss[i],
@@ -339,7 +330,10 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		}(client_idx, clientChan)
 	}
 
-	wg1.Wait() // Wait for all updates to complete
+	go func() {
+		wg.Wait()
+		close(clientChan)
+	}()
 
 	for result := range clientChan {
 		uList[result.i] += result.u
@@ -347,8 +341,6 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 			wsList[result.i][j] += result.ws[j]
 		}
 	}
-	log.Printf("uList = %#v\n", uList)
-	log.Printf("wsList = %#v\n", wsList)
 
 	var newClusterCenters [][]float64
 	prevClusterCenters := s.cluster_centers[len(s.cluster_centers)-1]
@@ -374,7 +366,10 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		}(i)
 	}
 
-	wg.Wait() // Wait for all cluster centers to be updated
+	go func() {
+		wg.Wait()
+		close(clusterCentersChan)
+	}()
 	for center := range clusterCentersChan {
 		newClusterCenters = append(newClusterCenters, center)
 	}
