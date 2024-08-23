@@ -3,7 +3,6 @@ module fcmeans
 go 1.22.1
 
 require (
-	github.com/MacIt/pickle v1.0.0
 	github.com/ergo-services/ergo v1.999.224
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	gonum.org/v1/gonum v0.15.1

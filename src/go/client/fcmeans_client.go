@@ -3,13 +3,9 @@ package main
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/gob"
 	"encoding/json"
 	"fcmeans/common"
-	"github.com/MacIt/pickle"
-	"github.com/ergo-services/ergo/etf"
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
-	"gonum.org/v1/gonum/mat"
 	"log"
 	"math"
 	"math/rand"
@@ -17,6 +13,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/ergo-services/ergo/etf"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"gonum.org/v1/gonum/mat"
 )
 
 type FCMeansClient struct {
@@ -64,6 +65,22 @@ func distance_fn(A [][]float64) float64 {
 		}
 	}
 	return math.Sqrt(sum)
+}
+
+func encodeToBytes(data interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(data)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decodeFromBytes(data []byte, v interface{}) error {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+	return decoder.Decode(v)
 }
 
 func load_experiment_info(numClients int, targetFeature int, datasetName ...string) ([][]float64, []float64, int) {
@@ -155,6 +172,8 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 			etf.Tuple{etf.Atom("fl_client_ready"), f.Process.Info().PID},
 		)
 	*/
+	gob.Register([][]float64{})
+
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Own_pid}
 }
 
@@ -164,29 +183,29 @@ func (f *FCMeansClient) CustomFunction(msg interface{}, fp common.FedLangProcess
 }
 
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
-	// The following is an example of how to send a message to another client
-	id := os.Getenv("FL_CLIENT_ID")
-	other_id, _ := strconv.Atoi(id)
-	other_id = (other_id + 1) % 2 // Here is implemented a basic ring topology (change 2 to the number of clients in the network)
-	fp.PeerSend(other_id, "CustomFunction", "Hello from "+id)
-	// End of example
+	// // The following is an example of how to send a message to another client
+	// id := os.Getenv("FL_CLIENT_ID")
+	// other_id, _ := strconv.Atoi(id)
+	// other_id = (other_id + 1) % 2 // Here is implemented a basic ring topology (change 2 to the number of clients in the network)
+	// fp.PeerSend(other_id, "CustomFunction", "Hello from "+id)
+	// // End of example
 
 	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
 	var centers_list [][]float64
-	decoder := pickle.NewDecoder(bytes.NewReader(centers_param))
-	decodedResult_tmp, err := decoder.Decode()
+	// var decodedResult_tmp interface{}
+	err := decodeFromBytes(centers_param, &centers_list)
 	if err != nil {
 		log.Println("Error decoding:", err)
 		panic(err)
 	}
-	for _, v := range decodedResult_tmp.([]interface{}) {
-		arr := make([]float64, 0)
-		for _, vv := range v.([]interface{}) {
-			arr = append(arr, vv.(float64))
-		}
-		centers_list = append(centers_list, arr)
-	}
-	log.Printf("centers_list = %v\n", centers_list)
+	// for _, v := range decodedResult_tmp.([]interface{}) {
+	// 	arr := make([]float64, 0)
+	// 	for _, vv := range v.([]interface{}) {
+	// 		arr = append(arr, vv.(float64))
+	// 	}
+	// 	centers_list = append(centers_list, arr)
+	// }
+	// log.Printf("centers_list = %v\n", centers_list)
 
 	// Convert centers to a matrix
 	centers := mat.NewDense(len(centers_list), len(centers_list[0]), nil)
@@ -238,7 +257,7 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	for i := 0; i < numClusters; i++ {
 		wsSlice[i] = ws.RawRowView(i)
 	}
-	data := pickle.Tuple{
+	data := []interface{}{
 		u.RawVector().Data,
 		wsSlice,
 	}
@@ -303,9 +322,8 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 			"ARI": float64(ari_client),
 		},
 	}
-	var buffer bytes.Buffer
-	encoder := pickle.NewEncoder(&buffer)
-	if err := encoder.Encode(data); err != nil {
+	data_bytes, err := encodeToBytes(data)
+	if err != nil {
 		panic(err)
 	}
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
@@ -314,7 +332,7 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
 	// )
 	log.Printf("end process_client, data = %v, metricsMessage = %v\n", data, metricsMessage)
-	return etf.Tuple{etf.Atom("fl_py_result"), buffer.Bytes(), metricsMessageBytes}
+	return etf.Tuple{etf.Atom("fl_py_result"), data_bytes, metricsMessageBytes}
 }
 
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {

@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
+	"encoding/gob"
 	"encoding/json"
 	"math/rand"
 
 	"fcmeans/common"
 
-	"github.com/MacIt/pickle"
 	"github.com/ergo-services/ergo/etf"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -52,6 +52,7 @@ type FLExperiment struct {
 }
 
 func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp common.FedLangProcess) etf.Term {
+	gob.Register([][]float64{})
 	byteSlice := []byte(bb)
 	client_ids := make([]int, len(byteSlice))
 	for i, b := range byteSlice {
@@ -177,6 +178,22 @@ func (e *FLExperiment) get_initialization() (map[string]interface{}, int, []byte
 
 var startFlTime = time.Time{}
 
+func encodeToBytes(data interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(data)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func decodeFromBytes(data []byte, v interface{}) error {
+	buf := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(buf)
+	return decoder.Decode(v)
+}
+
 func (s *FCMeansServer) Start_round(round_mail_box, experiment string, round_number int, fp common.FedLangProcess) etf.Term {
 	// log.Printf("round_mail_box = %#v, experiment = %#v, round_number = %#v\n", round_mail_box, experiment, round_number)
 	if startFlTime == (time.Time{}) {
@@ -188,45 +205,12 @@ func (s *FCMeansServer) Start_round(round_mail_box, experiment string, round_num
 	client_ids := s.FLExperiment._client_ids
 	// log.Printf("before sending result to (%#v, %#v)", s.Erl_worker_mailbox, s.Erl_client_name)
 
-	// Create a new encoder and encode the result
-	var buffer bytes.Buffer
-	encoder := pickle.NewEncoder(&buffer)
-	if err := encoder.Encode(result); err != nil {
-		log.Fatal("Error encoding:", err)
-		panic(err)
-	}
-
 	// The serialized data is now in buffer.Bytes()
-	tt := buffer.Bytes()
-	// log.Println("Serialized data:", tt)
-
-	//--------------------------------------
-	var decodedResult [][]float64
-	decoder := pickle.NewDecoder(bytes.NewReader(tt))
-	decodedResult_tmp, err := decoder.Decode()
+	tt, err := encodeToBytes(result)
 	if err != nil {
-		log.Println("Error decoding:", err)
 		panic(err)
 	}
-	for _, v := range decodedResult_tmp.([]interface{}) {
-		arr := make([]float64, 0)
-		for _, vv := range v.([]interface{}) {
-			arr = append(arr, vv.(float64))
-		}
-		decodedResult = append(decodedResult, arr)
-	}
 
-	// log.Println("Deserialized data:", decodedResult)
-
-	//--------------------------------------
-
-	// err = s.Process.Send(
-	// 	gen.ProcessID{Name: round_mail_box, Node: s.Erl_client_name},
-	// 	etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids},
-	// )
-	// if err != nil {
-	// 	panic(err)
-	// }
 	return etf.Tuple{etf.Atom("start_round_ok"), tt, client_ids}
 
 	// log.Printf("after sending (%#v, %#v) ! (start_round_ok)", s.erl_worker_mailbox, s.Erl_client_name)
@@ -266,7 +250,7 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 
 	type clientDataType struct {
 		clientId int
-		result   pickle.Tuple
+		result   []interface{}
 	}
 	var data []clientDataType
 	// etf.List{etf.Tuple{0, []uint8{
@@ -278,17 +262,13 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		if len(clientResponseSlice) < 2 {
 			panic("Error: clientResponseSlice is < 2")
 		}
-		var decodedResult pickle.Tuple
+		var decodedResult []interface{}
 		// ([1.0, 2.0, ...], [[1.0, 2.0, ...], [1.0, 2.0, ...], ...])
-		decoder := pickle.NewDecoder(bytes.NewReader(clientResponseSlice[1].([]byte)))
-		decodedResult_tmp, err := decoder.Decode()
+		// decoder := pickle.NewDecoder(bytes.NewReader(clientResponseSlice[1].([]byte)))
+		// decodedResult_tmp, err := decoder.Decode()
+		err := decodeFromBytes(clientResponseSlice[1].([]byte), &decodedResult)
 		if err != nil {
 			panic(err)
-		}
-
-		decodedResult, ok = decodedResult_tmp.(pickle.Tuple)
-		if !ok {
-			panic("Error: decodedResult is not of type resultType")
 		}
 
 		responseData := clientDataType{clientResponseSlice[0].(int), decodedResult}
@@ -299,7 +279,7 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		log.Printf("i = %d, data[0] = %v", i, d.clientId)
 	}
 
-	var cl_resp []pickle.Tuple
+	var cl_resp []interface{}
 	for _, cr := range data {
 		cl_resp = append(cl_resp, cr.result)
 	}
@@ -317,19 +297,19 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 
 	for client_idx := 0; client_idx < num_clients; client_idx++ {
 		response := data[client_idx].result
-		us := response[0].([]interface{})
-		wss := response[1].([]interface{})
+		us := response[0].([]float64)
+		wss := response[1].([][]float64)
 		for i := 0; i < s.num_clusters; i++ {
 			var clientWs *mat.Dense
-			clientU := us[i].(float64)
-			// log.Printf("clientU = %#v\n", clientU)
-			ws := wss[i].([]interface{})
-			// log.Printf("ws = %#v\n", ws)
+			clientU := us[i]
+			log.Printf("clientU = %#v\n", clientU)
+			ws := wss[i]
+			log.Printf("ws = %#v\n", ws)
 			clientWs = mat.NewDense(1, len(ws), nil)
 			for j, w := range ws {
-				clientWs.Set(0, j, w.(float64))
+				clientWs.Set(0, j, w)
 			}
-			// log.Printf("clientWs = %#v\n", clientWs)
+			log.Printf("clientWs = %#v\n", clientWs)
 			uList[i] += clientU
 			for j := 0; j < clientWs.RawMatrix().Cols; j++ {
 				wsList[i][j] += clientWs.At(0, j)
@@ -380,19 +360,16 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 			"FRO": diffMatrix,
 		},
 	}
-	var buffer bytes.Buffer
-
-	// Create a new encoder and encode the result
-	encoder := pickle.NewEncoder(&buffer)
-	if err := encoder.Encode(step_data); err != nil {
-		panic(err)
-	}
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
 	// s.Process.Send(
 	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
 	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
 	// )
-	return etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes}
+	sd_bytes, err := encodeToBytes(step_data)
+	if err != nil {
+		panic(err)
+	}
+	return etf.Tuple{etf.Atom("process_server_ok"), sd_bytes, metricsMessageBytes}
 }
 
 func (s *FCMeansServer) Finish(fp common.FedLangProcess) {
