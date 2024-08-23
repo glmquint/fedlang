@@ -141,7 +141,7 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 	}
 	atom := etf.Atom("fl_server_ready")
 	log.Printf("atom = %#v\n", atom)
-	pid := fp.Process.Info().PID
+	pid := fp.Own_pid
 	log.Printf("pid = %#v\n", pid)
 	// log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
 	log.Printf("callsList = %#v\n", callsList)

@@ -155,7 +155,7 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 			etf.Tuple{etf.Atom("fl_client_ready"), f.Process.Info().PID},
 		)
 	*/
-	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Process.Info().PID}
+	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Own_pid}
 }
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
 	//data := nil
@@ -283,7 +283,7 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	metricsMessage := map[string]interface{}{
 		"timestamp": time.Now().Unix(),
 		"round":     round_number,
-		"clientId":  fp.Process.Info().PID,
+		"clientId":  fp.Own_pid,
 		"hostMetrics": map[string]float64{
 			"cpuUsagePercentage":    cpu_percentages[0],
 			"memoryUsagePercentage": memory_usage_percentage,
@@ -310,6 +310,11 @@ func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
 	log.Printf("DESTROYYYY")
 	os.Exit(0)
 }
+
+// func (f *FCMeansClient) Update_graph(clients etf.Term, fp common.FedLangProcess) {
+// 	log.Printf("Update_graph")
+// 	log.Printf("clients = %#v\n", clients)
+// }
 
 func main() {
 

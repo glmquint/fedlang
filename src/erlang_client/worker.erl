@@ -4,7 +4,7 @@
 -author('José Luis Corcuera Bárcena <joseluis.corcuera@phd.unipi.it>').
 -export([init_worker/9]).
 
-create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, CodeLanguage) ->
+create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, CodeLanguage, ClientID) ->
   Cookie = os:getenv("FL_COOKIE"),
   case CodeLanguage of
     python ->
@@ -13,7 +13,7 @@ create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
     go ->
       GoScriptDir = os:getenv("FL_CLIENT_GO_DIR"),
       io:format(GoScriptDir),
-      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
+      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output_~p",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID, ClientID]);
     _ -> S = "echo Unsupported language"
   end,
   io:format(S),
@@ -29,7 +29,7 @@ init_worker(ClientPID, ClientID, ClientName, StrategyServerPID, StatsNodePID, Ex
     WorkerMailBox = lists:flatten(io_lib:format("mboxworker_~s",[ExperimentId])),
     PyNodeName = lists:flatten(io_lib:format("client_~p_~s@~s",[ClientID, ExperimentId, ClientIP])),
     register(list_to_atom(WorkerMailBox), self()),
-    create_client(ExperimentId, ClientModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage),
+    create_client(ExperimentId, ClientModule, PyNodeName, ClientName, WorkerMailBox, CodeLanguage, ClientID),
     io:format("------- WAITING node_ready ~p ~n", [ClientID]),
     receive
         {node_ready, PyrlangNodePID, PythonOSPID} ->
@@ -51,7 +51,7 @@ step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, St
                 UnixTime1 = MegaSecs1 * 1000000 + Secs1,
                 StatsMsg1 = lists:flatten(io_lib:format("{\"timestamp\":~p,\"type\":\"worker_ready\",\"client_id\":~p}", [UnixTime1, ClientID])),
                 StatsNodePID ! {fl_message, StatsMsg1},
-                StrategyServerPID ! {fl_worker_ready, ClientPID, self()},
+                StrategyServerPID ! {fl_worker_ready, ClientPID, self(), PyrlangNodePID},
                 step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
         {fl_next_round_step, RoundPID, Params, CurrentRound, FunctionName} ->
                 io:format("Round ~p, ClientID ~p, step ~p, in execution ~n", [CurrentRound, ClientID, FunctionName]),
