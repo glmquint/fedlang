@@ -2,6 +2,7 @@ services:
   director:
     image: fedlang
     container_name: director
+    stop_grace_period: 1s
     networks:
       fednet:
         ipv4_address: 172.19.0.2
@@ -13,6 +14,7 @@ services:
   client0:
     image: fedlang
     container_name: client0
+    stop_grace_period: 1s
     networks:
       fednet:
         ipv4_address: 172.19.0.3
@@ -24,6 +26,7 @@ services:
   client1:
     image: fedlang
     container_name: client1
+    stop_grace_period: 1s
     networks:
       fednet:
         ipv4_address: 172.19.0.4
@@ -35,6 +38,7 @@ services:
   stats_node_py:
     image: fedlang
     container_name: stats_node_py
+    stop_grace_period: 1s
     networks:
       fednet:
         ipv4_address: 172.19.0.5
@@ -46,6 +50,7 @@ services:
   stats_node_go:
     image: fedlang
     container_name: stats_node_go
+    stop_grace_period: 1s
     networks:
       fednet:
         ipv4_address: 172.19.0.5
