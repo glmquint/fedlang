@@ -11,6 +11,7 @@ trap cleanup EXIT
 
 # Start a new tmux session named 'fedlang_containers'
 tmux new-session -d -s fedlang_containers
+tmux set-option -g mouse on
 
 # Run the director container in the first pane
 tmux send-keys -t fedlang_containers "docker compose up director" C-m
