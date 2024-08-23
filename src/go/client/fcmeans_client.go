@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ergo-services/ergo/etf"
@@ -221,36 +222,59 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 
 	// Initialize ws and u slices
 	ws := mat.NewDense(numClusters, numFeatures, nil)
+	ws_mutexes := make([][]sync.Mutex, numClusters)
+	for i := range ws_mutexes {
+		ws_mutexes[i] = make([]sync.Mutex, numFeatures)
+		for j := range ws_mutexes[i] {
+			ws_mutexes[i][j] = sync.Mutex{}
+		}
+	}
 	u := mat.NewVecDense(numClusters, nil)
+	u_mutexes := make([]sync.Mutex, numClusters)
+	for i := range u_mutexes {
+		u_mutexes[i] = sync.Mutex{}
+	}
 
+	done := make(chan bool, numObjects)
 	for i := 0; i < numObjects; i++ {
-		denom := 0.0
-		numer := make([]float64, numClusters)
-		x := f.X[i]
-		for j := 0; j < numClusters; j++ {
-			vc := centers.RawRowView(j)
-			numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
-			if numer[j] == 0 {
-				numer[j] = 1e-10 // TODO: this is not the correct translation check it
+		go func(done chan bool) {
+			denom := 0.0
+			numer := make([]float64, numClusters)
+			x := f.X[i]
+			for j := 0; j < numClusters; j++ {
+				vc := centers.RawRowView(j)
+				numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
+				if numer[j] == 0 {
+					numer[j] = 1e-10 // TODO: this is not the correct translation check it
+				}
+				denom += (1 + numer[j])
 			}
-			denom += (1 + numer[j])
-		}
-		for j := 0; j < numClusters; j++ {
-			u_c_i := math.Pow((numer[j] * denom), -1)
-			//ws[c] = ws[c] + (u_c_i ** factor_lambda) * x
-			for k := 0; k < numFeatures; k++ {
-				// the illness of this single line of code is beyond me
-				// set the element at row j and column k to the sum of the
-				// element at row j and column k and the product of the
-				// element x[k] and the power of u_c_i to factorLambda
-				// also does not return anything the panic is inside the function
-				ws.Set(j, k, ws.At(j, k)+(math.Pow(u_c_i, factorLambda)*x[k]))
+			for j := 0; j < numClusters; j++ {
+				u_c_i := math.Pow((numer[j] * denom), -1)
+				//ws[c] = ws[c] + (u_c_i ** factor_lambda) * x
+				for k := 0; k < numFeatures; k++ {
+					// the illness of this single line of code is beyond me
+					// set the element at row j and column k to the sum of the
+					// element at row j and column k and the product of the
+					// element x[k] and the power of u_c_i to factorLambda
+					// also does not return anything the panic is inside the function
+					ws_mutexes[j][k].Lock()
+					ws.Set(j, k, ws.At(j, k)+(math.Pow(u_c_i, factorLambda)*x[k]))
+					ws_mutexes[j][k].Unlock()
+				}
+				//u[c] = u[c] + (u_c_i ** factor_lambda)
+				// Similar to the above line, set the element at index j to the
+				// sum of the element at index j and the power of u_c_i to factorLambda
+				u_mutexes[j].Lock()
+				u.SetVec(j, u.AtVec(j)+math.Pow(u_c_i, factorLambda))
+				u_mutexes[j].Unlock()
 			}
-			//u[c] = u[c] + (u_c_i ** factor_lambda)
-			// Similar to the above line, set the element at index j to the
-			// sum of the element at index j and the power of u_c_i to factorLambda
-			u.SetVec(j, u.AtVec(j)+math.Pow(u_c_i, factorLambda))
-		}
+			done <- true
+		}(done)
+	}
+	// Wait for all goroutines to finish
+	for i := 0; i < numObjects; i++ {
+		<-done
 	}
 	// Convert ws to a slice of slices and store data in a tuple
 	wsSlice := make([][]float64, numClusters)
