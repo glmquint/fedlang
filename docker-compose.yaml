@@ -45,7 +45,7 @@ services:
     volumes:
       - .:/app/fedlang
     command: >
-      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test0 -s init stop; read"
+      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test0 -s init stop | tee logs/stats.log; read"
 
   stats_node_go:
     image: fedlang
@@ -57,7 +57,7 @@ services:
     volumes:
       - .:/app/fedlang
     command: >
-      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test1 -s init stop; read"
+      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test1 -s init stop | tee logs/stats.log; read"
 
 networks:
   fednet:

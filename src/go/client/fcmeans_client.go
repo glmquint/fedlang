@@ -347,7 +347,7 @@ func main() {
 		log.Fatalf("Failed to open log file: %v", err)
 	}
 	defer logFile.Close()
-	log.SetOutput(os.Stdout)
+	log.SetOutput(logFile)
 
 	common.StartProcess[FCMeansClient](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id)
 }

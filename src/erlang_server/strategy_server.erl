@@ -66,7 +66,7 @@ create_server(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
         S = io_lib:format("python3 -u ~s/~s.py ~s ~s ~s ~s ~s",[PythonScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
       go ->
         GoScriptDir = os:getenv("FL_DIRECTOR_GO_DIR"),
-        S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
+        S = io_lib:format("~s/~s ~s ~s ~s ~s ~s",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
       _ -> S = "echo Unsupported language"
     end,
     io:format(S),

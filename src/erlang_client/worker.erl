@@ -13,7 +13,7 @@ create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
     go ->
       GoScriptDir = os:getenv("FL_CLIENT_GO_DIR"),
       io:format(GoScriptDir),
-      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s > output_~p",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID, ClientID]);
+      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s ",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
     _ -> S = "echo Unsupported language"
   end,
   io:format(S),
