@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"runtime/pprof"
+	"sync"
 	"time"
 
 	"encoding/gob"
@@ -59,6 +60,7 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 	for i, b := range byteSlice {
 		client_ids[i] = int(b)
 	}
+
 	var experiment_config map[string]interface{}
 
 	// Parse the JSON string
@@ -67,25 +69,30 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 		log.Fatal(err)
 	}
 	log.Printf("experiment = %#v, client_ids = %#v, experiment_config = %#v\n", experiment, client_ids, experiment_config)
+
 	parameters := experiment_config["parameters"].(map[string]interface{})
-	log.Printf("paramters->numFeatures = %#v\n", parameters["numFeatures"])
+	log.Printf("parameters->numFeatures = %#v\n", parameters["numFeatures"])
+
 	n_features := int(parameters["numFeatures"].(float64))
 	seed := int(parameters["seed"].(float64))
 	n_clusters := int(parameters["numClusters"].(float64))
 	s.target_feature = int(parameters["targetFeature"].(float64))
-	s.max_number_rounds = int(experiment_config["maxNumberOfRounds"].(float64)) // WARN: max_number_rounds should be in parameters??
+	s.max_number_rounds = int(experiment_config["maxNumberOfRounds"].(float64))
 	lambda_factor := int(parameters["lambdaFactor"].(float64))
 	stop_condition_threshold := experiment_config["stopConditionThreshold"]
 	log.Printf("n_features = %#v, seed = %#v, n_clusters = %#v, target_feature = %#v, max_number_rounds = %#v, lambda_factor = %#v, stop_condition_threshold = %#v\n", n_features, seed, n_clusters, s.target_feature, s.max_number_rounds, lambda_factor, stop_condition_threshold)
+
 	if stop_condition_threshold != nil {
 		s.epsilon = int(stop_condition_threshold.(float64))
 	} else {
-		s.epsilon = -1 // HACK: check logic behind stop_condition using epsilon
+		s.epsilon = -1
 		log.Println("stop_condition_threshold is nil")
 	}
 	log.Printf("n_clusters = %#v, epsilon = %#v, max_number_rounds = %#v, n_features = %#v", n_clusters, s.epsilon, s.max_number_rounds, n_features)
+
 	min_num_clients := int(experiment_config["minNumberClients"].(float64))
 	log.Printf("min_num_clients = %#v\n", min_num_clients)
+
 	flexperiment := FLExperiment{
 		_max_number_rounds: s.max_number_rounds,
 		_client_ids:        client_ids,
@@ -99,24 +106,33 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 		_calls_list:       nil,
 		_validate:         false,
 	}
+
 	log.Printf("flexperiment = %#v\n", flexperiment)
 	// rand.Seed(int64(seed))
 	random_gen := rand.New(rand.NewSource(int64(seed)))
 
+	// Initialize centers concurrently
 	centers := make([][]float64, n_clusters)
+	var wg sync.WaitGroup
+
 	for i := 0; i < n_clusters; i++ {
-		centers[i] = make([]float64, n_features)
-		for j := 0; j < n_features; j++ {
-			centers[i][j] = random_gen.Float64()
-		}
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			centers[i] = make([]float64, n_features)
+			for j := 0; j < n_features; j++ {
+				centers[i][j] = random_gen.Float64()
+			}
+		}(i)
 	}
-	// log.Printf("centers = %#v\n", centers)
+
+	wg.Wait() // Wait for all goroutines to complete
+
 	s.num_clusters = n_clusters
 	s.num_features = n_features
 	cluster_centers := make([][][]float64, 0)
 	cluster_centers = append(cluster_centers, centers)
 	s.cluster_centers = cluster_centers
-	_ = make([]float64, 0)
 
 	centerList := make([][]float64, len(centers))
 	for i, center := range centers {
@@ -125,7 +141,6 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 	log.Printf("centerList = %#v\n", centerList)
 
 	flexperiment._global_model_parameters = centerList
-
 	flexperiment._type_of_termination = "custom"
 	flexperiment._type_of_client_selection = "probability"
 	flexperiment._client_ratio = 1
@@ -142,22 +157,16 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 	if err != nil {
 		log.Fatalf("Error marshaling client config: %v", err)
 	}
+
 	atom := etf.Atom("fl_server_ready")
 	log.Printf("atom = %#v\n", atom)
 	pid := fp.Own_pid
 	log.Printf("pid = %#v\n", pid)
-	// log.Printf("clientConfigurationStr = %#v\n", clientConfigurationStr)
 	log.Printf("callsList = %#v\n", callsList)
+
 	msg := etf.Tuple{atom, pid, clientConfigurationStr, callsList}
 	log.Printf("sending message = %#v\n", msg)
-	// err = s.Process.Send(
-	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
-	// 	msg,
-	// )
-	// if err != nil {
-	// 	log.Fatalf("Error sending message: %v", err)
-	// 	panic(err)
-	// }
+
 	log.Printf("message sent = %#v\n", msg)
 	return msg
 }
@@ -240,41 +249,41 @@ func flatten(input [][]float64) []float64 {
 
 func (s *FCMeansServer) Process_server(round_mail_box string, experiment string, config_file int, client_responses etf.List, fp common.FedLangProcess) etf.Term {
 	log.Printf("Starting process_server ...")
-	// log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
-
-	// rand.Seed(time.Now().UnixNano())
-	// const low = 2
-	// const high = 4
-	// time_to_sleep := low + rand.Float64()*(high-low)
-	// time.Sleep(time.Duration(time_to_sleep) * time.Second)
-
-	// log.Printf("start process_server, experiment = %s, round_mail_box = %s, len(client_responses) = %d\n", experiment, round_mail_box, len(client_responses))
 
 	type clientDataType struct {
 		clientId int
 		result   []interface{}
 	}
 	var data []clientDataType
-	// etf.List{etf.Tuple{0, []uint8{
-	for _, clientResponse := range client_responses {
-		clientResponseSlice, ok := clientResponse.(etf.Tuple)
-		if !ok {
-			panic("Error: clientResponse is not of type etf.Tuple")
-		}
-		if len(clientResponseSlice) < 2 {
-			panic("Error: clientResponseSlice is < 2")
-		}
-		var decodedResult []interface{}
-		// ([1.0, 2.0, ...], [[1.0, 2.0, ...], [1.0, 2.0, ...], ...])
-		// decoder := pickle.NewDecoder(bytes.NewReader(clientResponseSlice[1].([]byte)))
-		// decodedResult_tmp, err := decoder.Decode()
-		err := decodeFromBytes(clientResponseSlice[1].([]byte), &decodedResult)
-		if err != nil {
-			panic(err)
-		}
+	var wg sync.WaitGroup
+	dataChan := make(chan clientDataType, len(client_responses))
 
-		responseData := clientDataType{clientResponseSlice[0].(int), decodedResult}
-		data = append(data, responseData)
+	// Decode client responses in parallel
+	for _, clientResponse := range client_responses {
+		wg.Add(1)
+		go func(clientResponse interface{}) {
+			defer wg.Done()
+			clientResponseSlice, ok := clientResponse.(etf.Tuple)
+			if !ok || len(clientResponseSlice) < 2 {
+				panic("Error: clientResponse is not of type etf.Tuple or length < 2")
+			}
+			var decodedResult []interface{}
+			err := decodeFromBytes(clientResponseSlice[1].([]byte), &decodedResult)
+			if err != nil {
+				panic(err)
+			}
+			responseData := clientDataType{clientResponseSlice[0].(int), decodedResult}
+			dataChan <- responseData
+		}(clientResponse)
+	}
+
+	go func() {
+		wg.Wait()
+		close(dataChan)
+	}()
+
+	for response := range dataChan {
+		data = append(data, response)
 	}
 
 	for i, d := range data {
@@ -285,7 +294,6 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 	for _, cr := range data {
 		cl_resp = append(cl_resp, cr.result)
 	}
-	// log.Printf("cl_resp = %#v\n", cl_resp)
 
 	s.currentRound += 1
 	num_clients := len(client_responses)
@@ -297,48 +305,84 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		wsList[i] = make([]float64, s.num_features)
 	}
 
+	clientChan := make(chan struct {
+		i  int
+		u  float64
+		ws []float64
+	}, num_clients*s.num_clusters)
+
+	var wg1 sync.WaitGroup
+	// Process client data and update cluster centers in parallel
 	for client_idx := 0; client_idx < num_clients; client_idx++ {
-		response := data[client_idx].result
-		us := response[0].([]float64)
-		wss := response[1].([][]float64)
-		for i := 0; i < s.num_clusters; i++ {
-			var clientWs *mat.Dense
-			clientU := us[i]
-			log.Printf("clientU = %#v\n", clientU)
-			ws := wss[i]
-			log.Printf("ws = %#v\n", ws)
-			clientWs = mat.NewDense(1, len(ws), nil)
-			for j, w := range ws {
-				clientWs.Set(0, j, w)
+		wg1.Add(1)
+		go func(client_idx int, clientChan chan struct {
+			i  int
+			u  float64
+			ws []float64
+		}) {
+			defer wg1.Done()
+			response := data[client_idx].result
+			us := response[0].([]float64)
+			wss := response[1].([][]float64)
+			for i := 0; i < s.num_clusters; i++ {
+				log.Printf("Processing client %d cluster %d", client_idx, i)
+				clientChan <- struct {
+					i  int
+					u  float64
+					ws []float64
+				}{
+					i:  i,
+					u:  us[i],
+					ws: wss[i],
+				}
 			}
-			log.Printf("clientWs = %#v\n", clientWs)
-			uList[i] += clientU
-			for j := 0; j < clientWs.RawMatrix().Cols; j++ {
-				wsList[i][j] += clientWs.At(0, j)
-			}
+		}(client_idx, clientChan)
+	}
+
+	wg1.Wait() // Wait for all updates to complete
+
+	for result := range clientChan {
+		uList[result.i] += result.u
+		for j := range len(result.ws) {
+			wsList[result.i][j] += result.ws[j]
 		}
 	}
+	log.Printf("uList = %#v\n", uList)
+	log.Printf("wsList = %#v\n", wsList)
+
 	var newClusterCenters [][]float64
 	prevClusterCenters := s.cluster_centers[len(s.cluster_centers)-1]
 
+	// Update new cluster centers in parallel
+	clusterCentersChan := make(chan []float64, s.num_clusters)
 	for i := 0; i < s.num_clusters; i++ {
-		u := uList[i]
-		ws := wsList[i]
-		var center []float64
-		if u == 0 {
-			center = prevClusterCenters[i]
-		} else {
-			center = make([]float64, len(ws))
-			for j := range ws {
-				center[j] = ws[j] / float64(u)
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			u := uList[i]
+			ws := wsList[i]
+			var center []float64
+			if u == 0 {
+				center = prevClusterCenters[i]
+			} else {
+				center = make([]float64, len(ws))
+				for j := range ws {
+					center[j] = ws[j] / float64(u)
+				}
 			}
-		}
+			clusterCentersChan <- center
+		}(i)
+	}
+
+	wg.Wait() // Wait for all cluster centers to be updated
+	for center := range clusterCentersChan {
 		newClusterCenters = append(newClusterCenters, center)
 	}
+
 	s.FLExperiment._global_model_parameters = newClusterCenters
 	s.cluster_centers = append(s.cluster_centers, newClusterCenters)
 
-	step_data, _ := s.FLExperiment.get_step_data() // TODO add client ids
+	step_data, _ := s.FLExperiment.get_step_data() // TODO: add client ids
 	centersR := mat.NewDense(len(newClusterCenters), len(newClusterCenters[0]), flatten(newClusterCenters))
 	centersR1 := mat.NewDense(len(prevClusterCenters), len(prevClusterCenters[0]), flatten(prevClusterCenters))
 	diffMatrix := mat.NewDense(centersR.RawMatrix().Rows, centersR.RawMatrix().Cols, nil)
@@ -358,15 +402,11 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 			"cpuUsagePercentage":    cpu_percentages[0],
 			"memoryUsagePercentage": memory_usage_percentage,
 		},
-		"modelMetrics": map[string](mat.Matrix){
+		"modelMetrics": map[string]mat.Matrix{
 			"FRO": diffMatrix,
 		},
 	}
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
-	// s.Process.Send(
-	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
-	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
-	// )
 	sd_bytes, err := encodeToBytes(step_data)
 	if err != nil {
 		panic(err)

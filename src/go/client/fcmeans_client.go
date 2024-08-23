@@ -186,26 +186,15 @@ func (f *FCMeansClient) CustomFunction(msg interface{}, fp common.FedLangProcess
 }
 
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
-	// // The following is an example of how to send a message to another client
-	fp.PeerSend(func(id, num_peers int) int { return (id + 1) % num_peers }, "CustomFunction", "Hello from "+os.Getenv("FL_CLIENT_ID"))
-	// // End of example
-
 	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
+
+	// Decode centers_param into centers_list
 	var centers_list [][]float64
-	// var decodedResult_tmp interface{}
 	err := decodeFromBytes(centers_param, &centers_list)
 	if err != nil {
 		log.Println("Error decoding:", err)
 		panic(err)
 	}
-	// for _, v := range decodedResult_tmp.([]interface{}) {
-	// 	arr := make([]float64, 0)
-	// 	for _, vv := range v.([]interface{}) {
-	// 		arr = append(arr, vv.(float64))
-	// 	}
-	// 	centers_list = append(centers_list, arr)
-	// }
-	// log.Printf("centers_list = %v\n", centers_list)
 
 	// Convert centers to a matrix
 	centers := mat.NewDense(len(centers_list), len(centers_list[0]), nil)
@@ -214,29 +203,28 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	}
 
 	// Initialize variables
-	numClusters := centers.ColView(0).Len() // TODO: check if we numCluster is over rows instead of columns
-	numObjects := len(f.X)                  //pls use more meaningful names
+	numClusters := centers.ColView(0).Len()
+	numObjects := len(f.X)
 	factorLambda := f.factor_lambda
 	numFeatures := f.num_features
 
 	// Initialize ws and u slices
 	ws := mat.NewDense(numClusters, numFeatures, nil)
-	ws_mutexes := make([][]sync.Mutex, numClusters)
-	for i := range ws_mutexes {
-		ws_mutexes[i] = make([]sync.Mutex, numFeatures)
-		for j := range ws_mutexes[i] {
-			ws_mutexes[i][j] = sync.Mutex{}
-		}
-	}
 	u := mat.NewVecDense(numClusters, nil)
-	u_mutexes := make([]sync.Mutex, numClusters)
-	for i := range u_mutexes {
-		u_mutexes[i] = sync.Mutex{}
-	}
 
-	done := make(chan bool, numObjects)
+	// Channel to collect results
+	wsCh := make(chan struct {
+		i     int
+		wsRow []float64
+		uVal  float64
+	}, numObjects)
+
+	// Goroutines to calculate ws and u
+	var wg sync.WaitGroup
 	for i := 0; i < numObjects; i++ {
-		go func(done chan bool) {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
 			denom := 0.0
 			numer := make([]float64, numClusters)
 			x := f.X[i]
@@ -244,37 +232,38 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 				vc := centers.RawRowView(j)
 				numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
 				if numer[j] == 0 {
-					numer[j] = 1e-10 // TODO: this is not the correct translation check it
+					numer[j] = 1e-10
 				}
 				denom += (1 + numer[j])
 			}
+
+			wsRow := make([]float64, numFeatures)
 			for j := 0; j < numClusters; j++ {
 				u_c_i := math.Pow((numer[j] * denom), -1)
-				//ws[c] = ws[c] + (u_c_i ** factor_lambda) * x
 				for k := 0; k < numFeatures; k++ {
-					// the illness of this single line of code is beyond me
-					// set the element at row j and column k to the sum of the
-					// element at row j and column k and the product of the
-					// element x[k] and the power of u_c_i to factorLambda
-					// also does not return anything the panic is inside the function
-					ws_mutexes[j][k].Lock()
-					ws.Set(j, k, ws.At(j, k)+(math.Pow(u_c_i, factorLambda)*x[k]))
-					ws_mutexes[j][k].Unlock()
+					wsRow[k] += math.Pow(u_c_i, factorLambda) * x[k]
 				}
-				//u[c] = u[c] + (u_c_i ** factor_lambda)
-				// Similar to the above line, set the element at index j to the
-				// sum of the element at index j and the power of u_c_i to factorLambda
-				u_mutexes[j].Lock()
-				u.SetVec(j, u.AtVec(j)+math.Pow(u_c_i, factorLambda))
-				u_mutexes[j].Unlock()
+				uVal := u.AtVec(j) + math.Pow(u_c_i, factorLambda)
+				wsCh <- struct {
+					i     int
+					wsRow []float64
+					uVal  float64
+				}{i: j, wsRow: wsRow, uVal: uVal}
 			}
-			done <- true
-		}(done)
+		}(i)
 	}
-	// Wait for all goroutines to finish
-	for i := 0; i < numObjects; i++ {
-		<-done
+
+	// Collect results
+	go func() {
+		wg.Wait()
+		close(wsCh)
+	}()
+
+	for result := range wsCh {
+		ws.SetRow(result.i, result.wsRow)
+		u.SetVec(result.i, result.uVal)
 	}
+
 	// Convert ws to a slice of slices and store data in a tuple
 	wsSlice := make([][]float64, numClusters)
 	for i := 0; i < numClusters; i++ {
@@ -291,40 +280,70 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 		uMatrix[i] = make([]float64, numObjects)
 	}
 
-	numer := make([]float64, numObjects)
+	// Channel to collect uMatrix results
+	uMatrixCh := make(chan struct {
+		i    int
+		uRow []float64
+	}, numObjects)
+
+	// Goroutines to calculate uMatrix
 	for i := 0; i < numObjects; i++ {
-		denom := 0.0
-		x := f.X[i]
-		for j := 0; j < numClusters; j++ {
-			vc := centers.RawRowView(j)
-			numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
-			if numer[j] == 0 {
-				numer[j] = 1e-10 // TODO: his is not the correct translation check it
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			denom := 0.0
+			numer := make([]float64, numClusters)
+			x := f.X[i]
+			for j := 0; j < numClusters; j++ {
+				vc := centers.RawRowView(j)
+				numer[j] = math.Pow(distance_fn([][]float64{x, vc}), (2 / (factorLambda - 1)))
+				if numer[j] == 0 {
+					numer[j] = 1e-10
+				}
+				denom += (1 / numer[j])
 			}
-			denom += (1 / numer[j])
-		}
+
+			uRow := make([]float64, numClusters)
+			for j := 0; j < numClusters; j++ {
+				u_c_i := math.Pow((numer[j] * denom), -1)
+				uRow[j] = u_c_i
+			}
+			uMatrixCh <- struct {
+				i    int
+				uRow []float64
+			}{i: i, uRow: uRow}
+		}(i)
+	}
+
+	// Collect uMatrix results
+	go func() {
+		wg.Wait()
+		close(uMatrixCh)
+	}()
+
+	for result := range uMatrixCh {
 		for j := 0; j < numClusters; j++ {
-			u_c_i := math.Pow((numer[j] * denom), -1)
-			uMatrix[j][i] = u_c_i
+			uMatrix[j][result.i] = result.uRow[j]
 		}
 	}
-	// u = np.asarray(u).T
+
+	// Transpose uMatrix and calculate y_pred
 	uMatrixT := make([][]float64, numObjects)
-	for i := range uMatrixT {
-		uMatrixT[i] = make([]float64, numClusters)
-	}
-	//y_pred = np.argmax(u, 1)
 	y_pred := make([]float64, numObjects)
+
 	for i := 0; i < numObjects; i++ {
+		uMatrixT[i] = make([]float64, numClusters)
 		max := 0.0
 		for j := 0; j < numClusters; j++ {
+			uMatrixT[i][j] = uMatrix[j][i]
 			if uMatrix[j][i] > max {
 				max = uMatrix[j][i]
 				y_pred[i] = float64(j)
 			}
 		}
 	}
-	// create a stub ARI score
+
+	// Create a stub ARI score and metrics message
 	ari_client := 0
 	v, _ := mem.VirtualMemory()
 	total_memory := v.Total
@@ -350,10 +369,7 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 		panic(err)
 	}
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
-	// s.Process.Send(
-	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
-	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
-	// )
+
 	log.Printf("end process_client, data = %v, metricsMessage = %v\n", data, metricsMessage)
 	return etf.Tuple{etf.Atom("fl_py_result"), data_bytes, metricsMessageBytes}
 }
