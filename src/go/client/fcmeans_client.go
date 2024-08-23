@@ -157,9 +157,20 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	*/
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Own_pid}
 }
+
+// Sample function called in P2P communication
+func (f *FCMeansClient) CustomFunction(msg interface{}, fp common.FedLangProcess) {
+	log.Printf("CustomFunction: received msg = %s\n", msg)
+}
+
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
-	//data := nil
-	// load the data from pickle format
+	// The following is an example of how to send a message to another client
+	id := os.Getenv("FL_CLIENT_ID")
+	other_id, _ := strconv.Atoi(id)
+	other_id = (other_id + 1) % 2 // Here is implemented a basic ring topology (change 2 to the number of clients in the network)
+	fp.PeerSend(other_id, "CustomFunction", "Hello from "+id)
+	// End of example
+
 	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
 	var centers_list [][]float64
 	decoder := pickle.NewDecoder(bytes.NewReader(centers_param))
