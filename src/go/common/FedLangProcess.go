@@ -97,7 +97,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 	return gen.ServerStatusOK
 }
 
-func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) etf.Term {
+func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) {
 	log.Printf("Update_graph: %#v\n", clients)
 	clients_list := clients.(etf.List)
 	for _, client := range clients_list {
@@ -110,7 +110,6 @@ func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) etf.T
 		}
 	}
 	log.Printf("graph updated: clients = %#v\n", s.clients)
-	return etf.Atom("graph_updated")
 }
 
 func (s *FedLangProcess) PeerSend(peer_id int, function string, args ...interface{}) {
