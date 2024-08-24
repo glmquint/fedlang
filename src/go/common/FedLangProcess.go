@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/ergo-services/ergo"
@@ -21,7 +22,10 @@ type FedLangProcess struct {
 	erl_worker_mailbox string
 	federated_actor    any
 	clients            map[int]etf.Pid
-	cached_messages    map[int][]etf.Term
+	cached_messages    []struct {
+		dest_selector func(id, num_peers int) int
+		etf.Tuple
+	}
 }
 
 func (s *FedLangProcess) Terminate(process *gen.ServerProcess, reason string) {
@@ -100,30 +104,45 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) {
 	log.Printf("Update_graph: %#v\n", clients)
 	clients_list := clients.(etf.List)
+	s.clients = make(map[int]etf.Pid)
 	for _, client := range clients_list {
 		client := client.(etf.Tuple)
 		client_id := client[0].(int)
 		client_pid := client[2].(etf.Pid)
 		s.clients[client_id] = client_pid
-		for _, msg := range s.cached_messages[client_id] {
-			s._peerSend(client_id, msg)
-		}
+	}
+	for _, msg := range s.cached_messages {
+		s._peerSend(msg.dest_selector, msg.Tuple)
 	}
 	log.Printf("graph updated: clients = %#v\n", s.clients)
 }
 
-func (s *FedLangProcess) PeerSend(peer_id int, function string, args ...interface{}) {
-	log.Printf("PeerSend: peer_id = %d, function = %s, args = %#v\n", peer_id, function, args)
+func (s *FedLangProcess) PeerSend(dest_selector func(id, num_peers int) int, function string, args ...interface{}) {
 	msg := etf.Tuple{s.Own_pid, etf.Atom(function), args}
-	s._peerSend(peer_id, msg)
+	s._peerSend(dest_selector, msg)
 }
 
-func (s *FedLangProcess) _peerSend(peer_id int, msg etf.Term) {
+func (s *FedLangProcess) _peerSend(dest_selector func(id, num_peers int) int, msg etf.Tuple) {
+	id_env := os.Getenv("FL_CLIENT_ID")
+	id, _ := strconv.Atoi(id_env)
+	if len(s.clients) == 0 {
+		log.Printf("No clients found, caching message %#v\n", msg)
+		s.cached_messages = append(s.cached_messages, struct {
+			dest_selector func(id, num_peers int) int
+			etf.Tuple
+		}{dest_selector, msg})
+		return
+	}
+	peer_id := dest_selector(id, len(s.clients))
+	log.Printf("PeerSend: peer_id = %d, msg = %#v\n", peer_id, msg)
 	peer_pid := s.clients[peer_id]
 	err := s.process.Send(peer_pid, msg)
 	if err != nil {
 		log.Printf("peer_pid = %#v not found, caching message %#v\n", peer_pid, msg)
-		s.cached_messages[peer_id] = append(s.cached_messages[peer_id], msg)
+		s.cached_messages = append(s.cached_messages, struct {
+			dest_selector func(id, num_peers int) int
+			etf.Tuple
+		}{dest_selector, msg})
 	}
 	log.Printf("message to peer %d sent = %#v\n", peer_id, msg)
 }
@@ -140,7 +159,10 @@ func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mai
 		erl_worker_mailbox: erl_worker_mailbox,
 		federated_actor:    new(T),
 		clients:            make(map[int]etf.Pid),
-		cached_messages:    make(map[int][]etf.Term),
+		cached_messages: make([]struct {
+			dest_selector func(id, num_peers int) int
+			etf.Tuple
+		}, 0),
 	}
 	// 	FedLangProcess: &FedLangProcess{
 	// 		erl_client_name:    erl_client_name,

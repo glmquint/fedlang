@@ -184,10 +184,7 @@ func (f *FCMeansClient) CustomFunction(msg interface{}, fp common.FedLangProcess
 
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
 	// // The following is an example of how to send a message to another client
-	// id := os.Getenv("FL_CLIENT_ID")
-	// other_id, _ := strconv.Atoi(id)
-	// other_id = (other_id + 1) % 2 // Here is implemented a basic ring topology (change 2 to the number of clients in the network)
-	// fp.PeerSend(other_id, "CustomFunction", "Hello from "+id)
+	fp.PeerSend(func(id, num_peers int) int { return (id + 1) % num_peers }, "CustomFunction", "Hello from "+os.Getenv("FL_CLIENT_ID"))
 	// // End of example
 
 	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
