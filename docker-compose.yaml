@@ -11,13 +11,29 @@ services:
     command: >
       /bin/bash -c "pipenv run sh run_director.sh; read"
 
+  stats_node:
+    image: fedlang
+    container_name: stats_node
+    stop_grace_period: 1s
+    networks:
+      fednet:
+        ipv4_address: 172.19.0.3
+    volumes:
+      - .:/app/fedlang
+    environment:
+        FL_DIRECTOR_NAME: director@172.19.0.2
+        FL_NUMBER_CLIENTS: 2
+        FL_LANGUAGE: go
+    command: >
+      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.3 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test -s init stop | tee logs/stats.log; read"
+
   client0:
     image: fedlang
     container_name: client0
     stop_grace_period: 1s
     networks:
       fednet:
-        ipv4_address: 172.19.0.3
+        ipv4_address: 172.19.0.4
     volumes:
       - .:/app/fedlang
     command: >
@@ -29,35 +45,11 @@ services:
     stop_grace_period: 1s
     networks:
       fednet:
-        ipv4_address: 172.19.0.4
+        ipv4_address: 172.19.0.5
     volumes:
       - .:/app/fedlang
     command: >
       /bin/bash -c "pipenv run sh run_clients.sh 1 1; read"
-
-  stats_node_py:
-    image: fedlang
-    container_name: stats_node_py
-    stop_grace_period: 1s
-    networks:
-      fednet:
-        ipv4_address: 172.19.0.5
-    volumes:
-      - .:/app/fedlang
-    command: >
-      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test0 -s init stop | tee logs/stats.log; read"
-
-  stats_node_go:
-    image: fedlang
-    container_name: stats_node_go
-    stop_grace_period: 1s
-    networks:
-      fednet:
-        ipv4_address: 172.19.0.5
-    volumes:
-      - .:/app/fedlang
-    command: >
-      /bin/bash -c "erlc stats_node.erl && erl -name stats_node_test@172.19.0.5 -setcookie 'cookie_123456789' -kernel prevent_overlapping_partitions false -noshell -s stats_node test1 -s init stop | tee logs/stats.log; read"
 
 networks:
   fednet:
