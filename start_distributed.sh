@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# USAGE:
+#   ./start_distributed.sh <number_of_clients> <language [go | python]>
+
 # Function to clean up tmux session and Docker containers
 cleanup() {
   tmux kill-session -t fedlang_containers
