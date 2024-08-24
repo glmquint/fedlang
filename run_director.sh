@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Starting director"
+
 export PROJECT_PATH="$PWD"
 export FL_CLIENT_ID="-1"
 #export ERLLIBDIR=$PROJECT_PATH/Pyrlang/py.erl

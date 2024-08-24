@@ -2,8 +2,7 @@
 % SPDX-License-Identifier: Apache-2.0
 -module(stats_node).
 -export([run_and_monitor/3, 
-        test0/0,
-        test1/0]).
+        test/0]).
 
 run_and_monitor(DirectorMBoxParam, DirectorNameParam, StartStrRunMessage) ->
     DirectorMBox = list_to_atom(DirectorMBoxParam),
@@ -21,37 +20,15 @@ receive_stats() ->
     end,
     receive_stats().
 
-test0() ->
+test() ->
+    DirectorName = os:getenv("FL_DIRECTOR_NAME"),
+    NumberClients = list_to_integer(os:getenv("FL_NUMBER_CLIENTS")),
+    Language = list_to_atom(os:getenv("FL_LANGUAGE")),
     run_and_monitor(
       "mboxDirector",
-      "director@172.19.0.2",
+      DirectorName,
       {
-       "fcmeans", python, 1, 1, 2, "max_number_rounds", none, 10, 
-        "{
-            \"algorithm\": \"fcmeans\",  
-            \"clientSelectionStrategy\": 1,  
-            \"minNumberClients\": 2,  
-            \"stopCondition\": null,  
-            \"stopConditionThreshold\": null,  
-            \"maxNumberOfRounds\": 10,  
-            \"parameters\": 
-            {     
-                \"numFeatures\": 16,     
-                \"numClusters\": 10,     
-                \"targetFeature\": 16,     
-                \"lambdaFactor\": 2,     
-                \"seed\": 10  
-            }
-        }"
-      }
-    ).
-
-test1() ->
-    run_and_monitor(
-      "mboxDirector", 
-      "director@172.19.0.2",
-      {
-       "fcmeans", go, 1, 1, 2, "max_number_rounds", none, 10, 
+       "fcmeans", Language, 1, 1, NumberClients, "max_number_rounds", none, 10, 
         "{
             \"algorithm\": \"fcmeans\",  
             \"clientSelectionStrategy\": 1,  
