@@ -94,6 +94,12 @@ aggregate_worker_responses(_ , _, 0, ClientResponses) ->
   ClientResponses;
 aggregate_worker_responses(ExperimentID, Round, NClients, Results) ->
     receive
+        {fl_worker_results_ack, {ClientID, DurationMS}} ->
+            UpdatedNClients = NClients,% - 1, % TODO: uncommend when last send is cumulative
+            io:format("ACK from Client ID: ~p ~n", [ClientID]),
+            io:format("Client duration in MS: ~p ~n", [DurationMS]),
+            io:format("Num. pending client results: ~p ~n", [UpdatedNClients]),
+            aggregate_worker_responses(ExperimentID, Round, UpdatedNClients, Results);
         {fl_worker_results, {ClientInfo, DurationMS, ClientResult}} ->
         		UpdatedNClients = NClients - 1,
                 NewResults = Results ++ [{ClientInfo, ClientResult}],

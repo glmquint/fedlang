@@ -22,6 +22,7 @@ type FedLangProcess struct {
 	erl_worker_mailbox string
 	federated_actor    any
 	clients            map[int]etf.Pid
+	NumClients         int
 	cached_messages    []struct {
 		dest_selector func(id, num_peers int) int
 		etf.Tuple
@@ -88,7 +89,7 @@ func (s *FedLangProcess) HandleInfo(process *gen.ServerProcess, message etf.Term
 		var res []reflect.Value
 		log.Printf("Calling %#v with in_args %#v\n", f, in)
 		res = f.Call(in)
-		if len(res) == 0 {
+		if len(res) == 0 || res[0].Interface() == nil {
 			log.Println("The function does not return any value.")
 			return gen.ServerStatusOK
 		}
@@ -111,12 +112,24 @@ func (s *FedLangProcess) Update_graph(clients etf.Term, fp FedLangProcess) {
 		client_pid := client[2].(etf.Pid)
 		s.clients[client_id] = client_pid
 	}
-	for _, msg := range s.cached_messages {
+	s.NumClients = len(s.clients)
+	for idx, msg := range s.cached_messages {
 		s._peerSend(msg.dest_selector, msg.Tuple)
+		// remove this message from the list
+		s.cached_messages = append(s.cached_messages[:idx], s.cached_messages[idx+1:]...)
 	}
 	log.Printf("graph updated: clients = %#v\n", s.clients)
 }
 
+func (s *FedLangProcess) WorkerSend(msg etf.Tuple) {
+	log.Printf("WorkerSend: %#v\n", msg)
+	err := s.process.Send(gen.ProcessID{Name: s.erl_worker_mailbox, Node: s.erl_client_name}, msg)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// expects a function that takes an id and the number of peers and returns the id of the peer to send the message to
 func (s *FedLangProcess) PeerSend(dest_selector func(id, num_peers int) int, function string, args ...interface{}) {
 	msg := etf.Tuple{s.Own_pid, etf.Atom(function), args}
 	s._peerSend(dest_selector, msg)
@@ -159,6 +172,7 @@ func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mai
 		erl_worker_mailbox: erl_worker_mailbox,
 		federated_actor:    new(T),
 		clients:            make(map[int]etf.Pid),
+		NumClients:         0,
 		cached_messages: make([]struct {
 			dest_selector func(id, num_peers int) int
 			etf.Tuple
