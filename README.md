@@ -24,5 +24,5 @@ docker network rm fednet; docker network create --subnet 172.19.0.0/16 fednet
 
 #### launch distributed nodes
 ```bash
-CGO_ENABLED=0 go build -C src/go/client/ -o fcmeans_client && CGO_ENABLED=0 go build -C src/go/server/ -o fcmeans_server && ./start_distributed.sh go
+CGO_ENABLED=0 go build -C src/go/client/ -o fcmeans_client && CGO_ENABLED=0 go build -C src/go/server/ -o fcmeans_server && ./start_distributed.sh 3 go
 ```
