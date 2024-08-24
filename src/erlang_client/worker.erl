@@ -57,6 +57,11 @@ step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, St
                 io:format("Round ~p, ClientID ~p, step ~p, in execution ~n", [CurrentRound, ClientID, FunctionName]),
                 PyrlangNodePID ! {self(), FunctionName, ExperimentId, CurrentRound, Params},
                 step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, RoundPID);
+        {fl_py_result_ack, MetricsMessage} ->
+                DurationMS = 0,
+                StatsNodePID ! {fl_message, MetricsMessage},
+                CallerPIDParam ! {fl_worker_results_ack, {ClientID, DurationMS}},
+                step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
         {fl_py_result, ReturnValue, MetricsMessage} ->
                 DurationMS = 0,
                 StatsNodePID ! {fl_message, MetricsMessage},

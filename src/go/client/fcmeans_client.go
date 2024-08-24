@@ -31,6 +31,8 @@ type FCMeansClient struct {
 	rows           int
 	num_features   int
 	datasetName    string
+	savedMetrics   []byte
+	receivedData   []interface{}
 }
 type FLExperiment struct {
 	_global_model_parameters    [][]float64
@@ -154,6 +156,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 }
 func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, fp common.FedLangProcess) etf.Term {
 	//log.Printf("experiment = %#v json_str_config = %#v\n", experiment, json_str_config)
+	f.receivedData = make([]interface{}, 0)
 	var experimentConfig ExperimentConfig
 	err := json.Unmarshal(json_str_config, &experimentConfig)
 	if err != nil {
@@ -178,11 +181,6 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	gob.Register([][]float64{})
 
 	return etf.Tuple{etf.Atom("fl_client_ready"), fp.Own_pid}
-}
-
-// Sample function called in P2P communication
-func (f *FCMeansClient) CustomFunction(msg interface{}, fp common.FedLangProcess) {
-	log.Printf("CustomFunction: received msg = %s\n", msg)
 }
 
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
@@ -371,7 +369,33 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
 
 	log.Printf("end process_client, data = %v, metricsMessage = %v\n", data, metricsMessage)
-	return etf.Tuple{etf.Atom("fl_py_result"), data_bytes, metricsMessageBytes}
+
+	fp.PeerSend(func(id, num_peers int) int { return max((id - 1), 0) }, "RingForward", data_bytes)
+	if os.Getenv("FL_CLIENT_ID") != "0" {
+		return etf.Tuple{etf.Atom("fl_py_result_ack"), metricsMessageBytes}
+	}
+	f.savedMetrics = metricsMessageBytes
+	return nil
+}
+
+func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangProcess) {
+	log.Printf("RingForward: received msg = %s\n", data_bytes)
+	if os.Getenv("FL_CLIENT_ID") != "0" {
+		fp.PeerSend(func(id, num_peers int) int { return max((id - 1), 0) }, "RingForward", data_bytes)
+		return
+	}
+	// master peer should aggregate the results
+	// TODO: for now it just sends all the results once they all arrive
+	f.receivedData = append(f.receivedData, data_bytes)
+	if fp.NumClients == 0 || len(f.receivedData) < fp.NumClients {
+		return
+	}
+	// all results have arrived
+	for data := range f.receivedData {
+		// process the data
+		fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), data, f.savedMetrics})
+	}
+	f.receivedData = make([]interface{}, 0)
 }
 
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
