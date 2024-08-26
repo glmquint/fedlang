@@ -25,17 +25,17 @@ import (
 var CLIENT_ID string
 
 type FCMeansClient struct {
-	factor_lambda  float64
-	num_clients    int
-	target_feature int
-	X              [][]float64
-	y_true         []float64
-	rows           int
-	num_features   int
-	datasetName    string
-	savedMetrics   []byte
-	receivedData   [][]byte
-	round_number   int
+	factor_lambda   float64
+	min_num_clients int
+	target_feature  int
+	X               [][]float64
+	y_true          []float64
+	rows            int
+	num_features    int
+	datasetName     string
+	savedMetrics    []byte
+	receivedData    [][]byte
+	round_number    int
 }
 type FLExperiment struct {
 	_global_model_parameters    [][]float64
@@ -169,11 +169,11 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 	log.Printf("experiment = %s, experimentConfig = %+v\n", experiment, experimentConfig)
 
 	f.factor_lambda = experimentConfig.LambdaFactor
-	f.num_clients = experimentConfig.NumClients
+	f.min_num_clients = experimentConfig.NumClients
 	f.target_feature = experimentConfig.TargetFeature
 	f.datasetName = experimentConfig.DatasetName
 
-	f.X, f.y_true, f.target_feature = load_experiment_info(f.num_clients, f.target_feature, f.datasetName)
+	f.X, f.y_true, f.target_feature = load_experiment_info(f.min_num_clients, f.target_feature, f.datasetName)
 	f.rows, f.num_features = len(f.X), len(f.X[0])
 	/*
 		f.Process.Send(
@@ -363,7 +363,7 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 			"ARI": float64(ari_client),
 		},
 	}
-	_, err = encodeToBytes(data)
+	data_bytes, err := encodeToBytes(data)
 	if err != nil {
 		panic(err)
 	}
@@ -375,10 +375,10 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	log.Printf("end process_client, data_len = %v, metricsMessage = %v\n", len(data), metricsMessage)
 
 	f.round_number = round_number
-	// fp.PeerSend(f.ringFunction(), "RingForward", data_bytes)
-	fp.PeerSend(f.ringFunction(), "RingForward", []byte("hello from "+CLIENT_ID))
+	fp.PeerSend(f.ringFunction(), "RingForward", data_bytes)
+	// fp.PeerSend(f.ringFunction(), "RingForward", []byte("hello from "+CLIENT_ID))
 	id, _ := strconv.Atoi(CLIENT_ID)
-	if id != (round_number % f.num_clients) {
+	if id != (round_number % fp.NumClients) {
 		return etf.Tuple{etf.Atom("fl_py_result_ack"), metricsMessageBytes}
 	}
 	f.savedMetrics = metricsMessageBytes
@@ -403,7 +403,8 @@ func (f *FCMeansClient) ringFunction() func(int, int) int {
 func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangProcess) {
 	log.Printf("RingForward: received msg = %#v\n", data_bytes)
 	id, _ := strconv.Atoi(CLIENT_ID)
-	if id != (f.round_number % f.num_clients) {
+	log.Printf("RingForward: id = %d, round_number = %d num_clients = %d\n", id, f.round_number, f.min_num_clients)
+	if id != (f.round_number % fp.NumClients) {
 		log.Printf("RingForward: not my turn, forwarding\n")
 		fp.PeerSend(f.ringFunction(), "RingForward", data_bytes)
 		return
@@ -420,6 +421,7 @@ func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangPro
 	for _, data := range f.receivedData {
 		// process the data
 		fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), data, f.savedMetrics})
+		break // for now, just process the first result TODO: aggregate the results
 	}
 	f.receivedData = make([][]byte, 0)
 }
