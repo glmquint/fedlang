@@ -22,6 +22,8 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+var CLIENT_ID string
+
 type FCMeansClient struct {
 	factor_lambda  float64
 	num_clients    int
@@ -32,7 +34,8 @@ type FCMeansClient struct {
 	num_features   int
 	datasetName    string
 	savedMetrics   []byte
-	receivedData   []interface{}
+	receivedData   [][]byte
+	round_number   int
 }
 type FLExperiment struct {
 	_global_model_parameters    [][]float64
@@ -156,7 +159,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 }
 func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, fp common.FedLangProcess) etf.Term {
 	//log.Printf("experiment = %#v json_str_config = %#v\n", experiment, json_str_config)
-	f.receivedData = make([]interface{}, 0)
+	f.receivedData = make([][]byte, 0)
 	var experimentConfig ExperimentConfig
 	err := json.Unmarshal(json_str_config, &experimentConfig)
 	if err != nil {
@@ -184,9 +187,7 @@ func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, f
 }
 
 func (f *FCMeansClient) Process_client(expertiment string, round_number int, centers_param []byte, fp common.FedLangProcess) etf.Term {
-	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param = %v\n", expertiment, round_number, centers_param)
-
-	// Decode centers_param into centers_list
+	log.Printf("start process_client, expertiment = %v, round_number = %v, centers_param_len = %v\n", expertiment, round_number, len(centers_param))
 	var centers_list [][]float64
 	err := decodeFromBytes(centers_param, &centers_list)
 	if err != nil {
@@ -362,40 +363,65 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 			"ARI": float64(ari_client),
 		},
 	}
-	data_bytes, err := encodeToBytes(data)
+	_, err = encodeToBytes(data)
 	if err != nil {
 		panic(err)
 	}
 	metricsMessageBytes, _ := json.Marshal(metricsMessage)
+	// s.Process.Send(
+	// 	gen.ProcessID{Name: s.Erl_worker_mailbox, Node: s.Erl_client_name},
+	// 	etf.Tuple{etf.Atom("process_server_ok"), buffer.Bytes(), metricsMessageBytes},
+	// )
+	log.Printf("end process_client, data_len = %v, metricsMessage = %v\n", len(data), metricsMessage)
 
-	log.Printf("end process_client, data = %v, metricsMessage = %v\n", data, metricsMessage)
-
-	fp.PeerSend(func(id, num_peers int) int { return max((id - 1), 0) }, "RingForward", data_bytes)
-	if os.Getenv("FL_CLIENT_ID") != "0" {
+	f.round_number = round_number
+	// fp.PeerSend(f.ringFunction(), "RingForward", data_bytes)
+	fp.PeerSend(f.ringFunction(), "RingForward", []byte("hello from "+CLIENT_ID))
+	id, _ := strconv.Atoi(CLIENT_ID)
+	if id != (round_number % f.num_clients) {
 		return etf.Tuple{etf.Atom("fl_py_result_ack"), metricsMessageBytes}
 	}
 	f.savedMetrics = metricsMessageBytes
 	return nil
 }
 
+func (f *FCMeansClient) ringFunction() func(int, int) int {
+	rn := f.round_number
+	return func(id, num_peers int) int {
+		log.Printf("ringFunction: id = %d, num_peers = %d rn = %d\n", id, num_peers, rn)
+		if id == (rn % num_peers) {
+			log.Println("ringFunction: self send")
+			return id
+		}
+
+		peer_id := (id + 1) % num_peers
+		log.Printf("ringFunction: peer_id = %d\n", peer_id)
+		return peer_id
+	}
+}
+
 func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangProcess) {
-	log.Printf("RingForward: received msg = %s\n", data_bytes)
-	if os.Getenv("FL_CLIENT_ID") != "0" {
-		fp.PeerSend(func(id, num_peers int) int { return max((id - 1), 0) }, "RingForward", data_bytes)
+	log.Printf("RingForward: received msg = %#v\n", data_bytes)
+	id, _ := strconv.Atoi(CLIENT_ID)
+	if id != (f.round_number % f.num_clients) {
+		log.Printf("RingForward: not my turn, forwarding\n")
+		fp.PeerSend(f.ringFunction(), "RingForward", data_bytes)
 		return
 	}
 	// master peer should aggregate the results
 	// TODO: for now it just sends all the results once they all arrive
-	f.receivedData = append(f.receivedData, data_bytes)
+	f.receivedData = append(f.receivedData, data_bytes.([]byte))
+	log.Printf("RingForward: received data len = %d\n", len(f.receivedData))
 	if fp.NumClients == 0 || len(f.receivedData) < fp.NumClients {
 		return
 	}
+	log.Printf("RingForward: all results have arrived\n")
 	// all results have arrived
-	for data := range f.receivedData {
+	for _, data := range f.receivedData {
 		// process the data
 		fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), data, f.savedMetrics})
 	}
-	f.receivedData = make([]interface{}, 0)
+	f.receivedData = make([][]byte, 0)
 }
 
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
@@ -423,10 +449,11 @@ func main() {
 	erl_worker_mailbox := os.Args[3] // mboxserver_c0ecdfb7-00f1-4270-8e46-d835bd00f153
 	erl_cookie := os.Args[4]         // cookie_123456789
 	experiment_id := os.Args[5]      // c0ecdfb7-00f1-4270-8e46-d835bd00f153
+	CLIENT_ID = os.Args[6]           // 0
 
 	log.Printf("gorlang_node_id = %v, erl_client_name = %v, erl_worker_mailbox = %v, erl_cookie = %v, experiment_id = %v\n", go_node_id, erl_client_name, erl_worker_mailbox, erl_cookie, experiment_id)
 
-	logFileName := os.Getenv("FL_CLIENT_LOG_FOLDER") + "/" + os.Getenv("FL_CLIENT_ID") + ".log"
+	logFileName := os.Getenv("FL_CLIENT_LOG_FOLDER") + "/" + CLIENT_ID + ".log"
 	if logFileName == "" {
 		logFileName = "default_client.log"
 	}
