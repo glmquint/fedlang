@@ -9,11 +9,11 @@ create_client(ExperimentID, ServerModule, ServerNodeName, WorkerName, WorkerMail
   case CodeLanguage of
     python ->
       PythonScriptDir = os:getenv("FL_CLIENT_PY_DIR"),
-      S = io_lib:format("python3 -u ~s/~s.py ~s ~s ~s ~s ~s",[PythonScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
+      S = io_lib:format("python3 -u ~s/~s.py ~s ~s ~s ~s ~s ~p",[PythonScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID, ClientID]);
     go ->
       GoScriptDir = os:getenv("FL_CLIENT_GO_DIR"),
       io:format(GoScriptDir),
-      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s ",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID]);
+      S = io_lib:format("~s/~s ~s ~s ~s ~s ~s ~p",[GoScriptDir, ServerModule, ServerNodeName, WorkerName, WorkerMailBox, Cookie, ExperimentID, ClientID]);
     _ -> S = "echo Unsupported language"
   end,
   io:format(S),
