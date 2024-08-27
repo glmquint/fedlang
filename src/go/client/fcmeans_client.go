@@ -447,7 +447,7 @@ func (f *FCMeansClient) aggregate(data_bytes []byte) {
 		decodedResult.Ws[i] = v
 	}
 	log.Printf("decodedResult = %#v\n", decodedResult)
-	for i := range len(decodedResult.U) {
+	for i := range len(decodedResult.U) { // for each cluster
 		if len(f.aggregatedResults.U) == 0 {
 			f.aggregatedResults.U = make([]float64, len(decodedResult.U))
 		}
@@ -455,7 +455,7 @@ func (f *FCMeansClient) aggregate(data_bytes []byte) {
 		if len(f.aggregatedResults.Ws) == 0 {
 			f.aggregatedResults.Ws = make([][]float64, len(decodedResult.Ws))
 		}
-		for j := range len(decodedResult.Ws[i]) {
+		for j := range len(decodedResult.Ws[i]) { // for each feature
 			if len(f.aggregatedResults.Ws[i]) == 0 {
 				f.aggregatedResults.Ws[i] = make([]float64, len(decodedResult.Ws[i]))
 			}
