@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"runtime/pprof"
 	"time"
 
 	"encoding/gob"
@@ -375,10 +376,20 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 
 func (s *FCMeansServer) Finish(fp common.FedLangProcess) {
 	log.Printf("DESTROY")
+	pprof.StopCPUProfile()
+	cpufile.Close()
 	os.Exit(0)
 }
 
+var cpufile *os.File
+
 func main() {
+	var err error
+	cpufile, err = os.Create("servercpu.prof")
+	if err != nil {
+		panic(err)
+	}
+	pprof.StartCPUProfile(cpufile)
 	go_node_id := os.Args[1]         // go_c0ecdfb7-00f1-4270-8e46-d835bd00f153@127.0.0.1
 	erl_client_name := os.Args[2]    // director@127.0.0.1
 	erl_worker_mailbox := os.Args[3] // mboxserver_c0ecdfb7-00f1-4270-8e46-d835bd00f153

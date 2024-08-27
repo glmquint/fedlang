@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strconv"
 	"time"
 
@@ -266,9 +267,9 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 		uMatrix[i] = make([]float64, numObjects)
 	}
 
+	numer := make([]float64, numObjects)
 	for i := 0; i < numObjects; i++ {
 		denom := 0.0
-		numer := make([]float64, numObjects)
 		x := f.X[i]
 		for j := 0; j < numClusters; j++ {
 			vc := centers.RawRowView(j)
@@ -335,16 +336,24 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {
 	log.Printf("DESTROYYYY")
+	pprof.StopCPUProfile()
+	cpufile.Close()
 	os.Exit(0)
 }
 
-// func (f *FCMeansClient) Update_graph(clients etf.Term, fp common.FedLangProcess) {
-// 	log.Printf("Update_graph")
-// 	log.Printf("clients = %#v\n", clients)
-// }
+//	func (f *FCMeansClient) Update_graph(clients etf.Term, fp common.FedLangProcess) {
+//		log.Printf("Update_graph")
+//		log.Printf("clients = %#v\n", clients)
+//	}
+var cpufile *os.File
 
 func main() {
-
+	var err error
+	cpufile, err = os.Create("client_cpu.prof")
+	if err != nil {
+		panic(err)
+	}
+	pprof.StartCPUProfile(cpufile)
 	go_node_id := os.Args[1]         // go_c0ecdfb7-00f1-4270-8e46-d835bd00f153@127.0.0.1
 	erl_client_name := os.Args[2]    // director@127.0.0.1
 	erl_worker_mailbox := os.Args[3] // mboxserver_c0ecdfb7-00f1-4270-8e46-d835bd00f153

@@ -164,3 +164,4 @@ src/erlang_server/output
 src/erlang_client/output*
 src/go/server/fcmeans_server
 src/go/client/fcmeans_client
+*.prof
