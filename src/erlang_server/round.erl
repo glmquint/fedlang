@@ -100,6 +100,13 @@ aggregate_worker_responses(ExperimentID, Round, NClients, Results) ->
             io:format("Client duration in MS: ~p ~n", [DurationMS]),
             io:format("Num. pending client results: ~p ~n", [UpdatedNClients]),
             aggregate_worker_responses(ExperimentID, Round, UpdatedNClients, Results);
+        {fl_worker_results, {ClientInfo, DurationMS, ClientResult, NumResults}} ->
+                UpdatedNClients = max(NClients - NumResults, 0),
+                NewResults = Results ++ [{ClientInfo, ClientResult}],
+                io:format("Client info: ~p ~n", [ClientInfo]),
+                io:format("Client duration in MS: ~p ~n", [DurationMS]),
+                io:format("Num. pending client results: ~p ~n", [UpdatedNClients]),
+          aggregate_worker_responses(ExperimentID, Round, UpdatedNClients, NewResults);
         {fl_worker_results, {ClientInfo, DurationMS, ClientResult}} ->
         		UpdatedNClients = NClients - 1,
                 NewResults = Results ++ [{ClientInfo, ClientResult}],

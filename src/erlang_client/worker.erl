@@ -62,7 +62,13 @@ step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, St
                 DurationMS = 0,
                 StatsNodePID ! {fl_message, MetricsMessage},
                 CallerPIDParam ! {fl_worker_results_ack, {ClientID, DurationMS}},
-                step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
+                step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, CallerPIDParam);
+        {fl_py_result, ReturnValue, MetricsMessage, NumResults} ->
+                DurationMS = 0,
+                StatsNodePID ! {fl_message, MetricsMessage},
+                io:format("fl_py_result: CallerPID param ~p Client ~p, ~n", [CallerPIDParam,ClientID]),
+                CallerPIDParam ! {fl_worker_results, {ClientID, DurationMS, ReturnValue, NumResults}},
+                step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, CallerPIDParam);
         {fl_py_result, ReturnValue, MetricsMessage} ->
                 DurationMS = 0,
                 StatsNodePID ! {fl_message, MetricsMessage},
