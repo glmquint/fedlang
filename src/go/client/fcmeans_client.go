@@ -24,18 +24,24 @@ import (
 
 var CLIENT_ID string
 
+type clientResult struct {
+	U  []float64
+	Ws [][]float64
+}
+
 type FCMeansClient struct {
-	factor_lambda   float64
-	min_num_clients int
-	target_feature  int
-	X               [][]float64
-	y_true          []float64
-	rows            int
-	num_features    int
-	datasetName     string
-	savedMetrics    []byte
-	receivedData    [][]byte
-	round_number    int
+	factor_lambda     float64
+	min_num_clients   int
+	target_feature    int
+	X                 [][]float64
+	y_true            []float64
+	rows              int
+	num_features      int
+	datasetName       string
+	savedMetrics      []byte
+	aggregatedResults clientResult
+	aggregatedCount   int
+	round_number      int
 }
 type FLExperiment struct {
 	_global_model_parameters    [][]float64
@@ -124,7 +130,7 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 		}
 	}
 	if targetIndex == -1 {
-		log.Fatalf("Target feature %s not found in dataset", targetFeature)
+		log.Fatalf("Target feature %d not found in dataset", targetFeature)
 	}
 
 	var dfX [][]float64
@@ -159,7 +165,8 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 }
 func (f *FCMeansClient) Init_client(experiment string, json_str_config []byte, fp common.FedLangProcess) etf.Term {
 	//log.Printf("experiment = %#v json_str_config = %#v\n", experiment, json_str_config)
-	f.receivedData = make([][]byte, 0)
+	f.aggregatedResults = clientResult{}
+	f.aggregatedCount = 0
 	var experimentConfig ExperimentConfig
 	err := json.Unmarshal(json_str_config, &experimentConfig)
 	if err != nil {
@@ -397,7 +404,7 @@ func (f *FCMeansClient) ringFunction() func(int, int) int {
 }
 
 func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangProcess) {
-	log.Printf("RingForward: received msg = %#v\n", data_bytes)
+	log.Printf("RingForward: received msg_len = %#v\n", len(data_bytes.([]byte)))
 	id, _ := strconv.Atoi(CLIENT_ID)
 	log.Printf("RingForward: id = %d, round_number = %d num_clients = %d\n", id, f.round_number, fp.NumClients)
 	if id != (f.round_number % fp.NumClients) {
@@ -407,15 +414,56 @@ func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangPro
 	}
 	// master peer should aggregate the results
 	// TODO: for now it just sends all the results once they all arrive
-	f.receivedData = append(f.receivedData, data_bytes.([]byte))
-	log.Printf("RingForward: received data len = %d\n", len(f.receivedData))
-	if fp.NumClients == 0 || len(f.receivedData) < fp.NumClients {
-		return
+	// f.aggregatedData = append(f.aggregatedData, data_bytes.([]byte))
+	f.aggregate(data_bytes.([]byte))
+	if fp.NumClients != 0 && f.aggregatedCount >= fp.NumClients {
+		log.Printf("RingForward: all results have arrived\n")
+		// all results have arrived
+		result_bytes, err := encodeToBytes(f.aggregatedResults)
+		if err != nil {
+			panic(err)
+		}
+		fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), result_bytes, f.savedMetrics, f.aggregatedCount})
+		f.aggregatedResults = clientResult{}
+		f.aggregatedCount = 0
 	}
-	log.Printf("RingForward: all results have arrived\n")
-	// all results have arrived
-	fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), f.receivedData[0], f.savedMetrics, len(f.receivedData)})
-	f.receivedData = make([][]byte, 0)
+}
+
+func (f *FCMeansClient) aggregate(data_bytes []byte) {
+	decodedResult := clientResult{}
+	var decodedResult_tmp []interface{}
+	err := decodeFromBytes(data_bytes, &decodedResult_tmp)
+	if err != nil {
+		log.Printf("decodedResult = %#v\n", decodedResult)
+		log.Println("Error decoding decodedResult:", err)
+		panic(err)
+	}
+	log.Printf("decodedResult_tmp = %#v\n", decodedResult_tmp)
+	decodedResult.U = decodedResult_tmp[0].([]float64)
+	log.Printf("decodedResult.U = %#v\n", decodedResult.U)
+	decodedResult.Ws = make([][]float64, len(decodedResult_tmp[1].([][]float64)))
+	log.Printf("decodedResult.Ws = %#v\n", decodedResult.Ws)
+	for i, v := range decodedResult_tmp[1].([][]float64) {
+		decodedResult.Ws[i] = v
+	}
+	log.Printf("decodedResult = %#v\n", decodedResult)
+	for i := range len(decodedResult.U) {
+		if len(f.aggregatedResults.U) == 0 {
+			f.aggregatedResults.U = make([]float64, len(decodedResult.U))
+		}
+		f.aggregatedResults.U[i] += decodedResult.U[i]
+		if len(f.aggregatedResults.Ws) == 0 {
+			f.aggregatedResults.Ws = make([][]float64, len(decodedResult.Ws))
+		}
+		for j := range len(decodedResult.Ws[i]) {
+			if len(f.aggregatedResults.Ws[i]) == 0 {
+				f.aggregatedResults.Ws[i] = make([]float64, len(decodedResult.Ws[i]))
+			}
+			f.aggregatedResults.Ws[i][j] += decodedResult.Ws[i][j]
+		}
+	}
+	f.aggregatedCount++
+	log.Printf("aggregatedCount = %d\n", f.aggregatedCount)
 }
 
 func (f *FCMeansClient) Destroy(fp common.FedLangProcess) {

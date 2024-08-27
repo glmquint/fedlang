@@ -252,7 +252,10 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 
 	type clientDataType struct {
 		clientId int
-		result   []interface{}
+		result   struct {
+			U  []float64
+			Ws [][]float64
+		}
 	}
 	var data []clientDataType
 	var wg sync.WaitGroup
@@ -267,7 +270,10 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 			if !ok || len(clientResponseSlice) < 2 {
 				panic("Error: clientResponse is not of type etf.Tuple or length < 2")
 			}
-			var decodedResult []interface{}
+			var decodedResult struct {
+				U  []float64
+				Ws [][]float64
+			}
 			err := decodeFromBytes(clientResponseSlice[1].([]byte), &decodedResult)
 			if err != nil {
 				panic(err)
@@ -318,8 +324,8 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		go func(client_idx int, clientChan chan indexedUWS) {
 			defer wg.Done()
 			response := data[client_idx].result
-			us := response[0].([]float64)
-			wss := response[1].([][]float64)
+			us := response.U
+			wss := response.Ws
 			for i := 0; i < s.num_clusters; i++ {
 				clientChan <- indexedUWS{
 					i:  i,
