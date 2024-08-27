@@ -250,7 +250,10 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 
 	type clientDataType struct {
 		clientId int
-		result   []interface{}
+		result   struct {
+			U  []float64
+			Ws [][]float64
+		}
 	}
 	var data []clientDataType
 	// etf.List{etf.Tuple{0, []uint8{
@@ -262,7 +265,10 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 		if len(clientResponseSlice) < 2 {
 			panic("Error: clientResponseSlice is < 2")
 		}
-		var decodedResult []interface{}
+		var decodedResult struct {
+			U  []float64
+			Ws [][]float64
+		}
 		// ([1.0, 2.0, ...], [[1.0, 2.0, ...], [1.0, 2.0, ...], ...])
 		// decoder := pickle.NewDecoder(bytes.NewReader(clientResponseSlice[1].([]byte)))
 		// decodedResult_tmp, err := decoder.Decode()
@@ -297,8 +303,8 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 
 	for client_idx := 0; client_idx < num_clients; client_idx++ {
 		response := data[client_idx].result
-		us := response[0].([]float64)
-		wss := response[1].([][]float64)
+		us := response.U
+		wss := response.Ws
 		for i := 0; i < s.num_clusters; i++ {
 			var clientWs *mat.Dense
 			clientU := us[i]

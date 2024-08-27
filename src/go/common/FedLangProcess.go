@@ -165,7 +165,7 @@ func (s *FedLangProcess) _peerSend(dest_selector func(id, num_peers int) int, ms
 			etf.Tuple
 		}{dest_selector, msg})
 	}
-	log.Printf("message to peer %d sent = %#v\n", peer_id, msg)
+	log.Printf("message to peer %d sent_len = %#v\n", peer_id, len(msg))
 }
 
 func StartProcess[T any](go_node_id, erl_cookie, erl_client_name, erl_worker_mailbox, experiment_id string) {
