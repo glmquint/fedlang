@@ -377,12 +377,8 @@ func (f *FCMeansClient) Process_client(expertiment string, round_number int, cen
 	f.round_number = round_number
 	fp.PeerSend(f.ringFunction(), "RingForward", data_bytes)
 	// fp.PeerSend(f.ringFunction(), "RingForward", []byte("hello from "+CLIENT_ID))
-	id, _ := strconv.Atoi(CLIENT_ID)
-	if id != (round_number % 3) { // TODO: remove hardcoded number of clients
-		return etf.Tuple{etf.Atom("fl_py_result_ack"), metricsMessageBytes}
-	}
 	f.savedMetrics = metricsMessageBytes
-	return nil
+	return etf.Tuple{etf.Atom("fl_py_result_ack"), metricsMessageBytes}
 }
 
 func (f *FCMeansClient) ringFunction() func(int, int) int {
@@ -418,11 +414,7 @@ func (f *FCMeansClient) RingForward(data_bytes interface{}, fp common.FedLangPro
 	}
 	log.Printf("RingForward: all results have arrived\n")
 	// all results have arrived
-	for _, data := range f.receivedData {
-		// process the data
-		fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), data, f.savedMetrics})
-		// break // for now, just process the first result TODO: aggregate the results
-	}
+	fp.WorkerSend(etf.Tuple{etf.Atom("fl_py_result"), f.receivedData[0], f.savedMetrics, len(f.receivedData)})
 	f.receivedData = make([][]byte, 0)
 }
 
