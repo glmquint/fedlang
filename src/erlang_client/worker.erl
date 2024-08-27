@@ -42,6 +42,7 @@ init_worker(ClientPID, ClientID, ClientName, StrategyServerPID, StatsNodePID, Ex
 
 
 step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, CallerPIDParam) ->
+  io:format("START:CallerPID param ~p Client ~p, ~n", [CallerPIDParam,ClientID]),
 	io:format("Process FL step on client ~p. ~n", [ClientID]),
 	io:format("ExperimentId: ~p ~n", [ExperimentId]),
     receive
@@ -65,8 +66,9 @@ step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, St
         {fl_py_result, ReturnValue, MetricsMessage} ->
                 DurationMS = 0,
                 StatsNodePID ! {fl_message, MetricsMessage},
+                io:format("fl_py_result: CallerPID param ~p Client ~p, ~n", [CallerPIDParam,ClientID]),
                 CallerPIDParam ! {fl_worker_results, {ClientID, DurationMS, ReturnValue}},
-                step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, undefined);
+                step_fl(PyrlangNodePID, ClientPID, StrategyServerPID, ExperimentId, ClientID, StatsNodePID, CallerPIDParam);
         {fl_end, ExperimentId} ->
                 PyrlangNodePID ! {self(), 'destroy'},
                 io:format("FLProcess, Experiment finished: ~p, Pylang Node: ~p ~n", [ExperimentId, PyrlangNodePID]);
