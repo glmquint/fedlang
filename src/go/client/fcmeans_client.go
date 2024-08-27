@@ -149,7 +149,8 @@ func load_experiment_info(numClients int, targetFeature int, datasetName ...stri
 		dfX = append(dfX, row)
 	}
 
-	randomSamples := rand.Perm(len(dfX))[:size]
+	random_gen := rand.New(rand.NewSource(42))
+	randomSamples := random_gen.Perm(len(dfX))[:size]
 	var values [][]float64
 	var yTrueSample []float64
 	for _, idx := range randomSamples {
@@ -401,7 +402,7 @@ func (f *FCMeansClient) aggregate(data_bytes []byte) {
 		decodedResult.Ws[i] = v
 	}
 	log.Printf("decodedResult = %#v\n", decodedResult)
-	for i := range len(decodedResult.U) {
+	for i := range len(decodedResult.U) { // for each cluster
 		if len(f.aggregatedResults.U) == 0 {
 			f.aggregatedResults.U = make([]float64, len(decodedResult.U))
 		}
@@ -409,7 +410,7 @@ func (f *FCMeansClient) aggregate(data_bytes []byte) {
 		if len(f.aggregatedResults.Ws) == 0 {
 			f.aggregatedResults.Ws = make([][]float64, len(decodedResult.Ws))
 		}
-		for j := range len(decodedResult.Ws[i]) {
+		for j := range len(decodedResult.Ws[i]) { // for each feature
 			if len(f.aggregatedResults.Ws[i]) == 0 {
 				f.aggregatedResults.Ws[i] = make([]float64, len(decodedResult.Ws[i]))
 			}

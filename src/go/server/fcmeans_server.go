@@ -99,13 +99,14 @@ func (s *FCMeansServer) Init_server(experiment, json_str_config, bb string, fp c
 		_validate:         false,
 	}
 	log.Printf("flexperiment = %#v\n", flexperiment)
-	rand.Seed(int64(seed))
+	// rand.Seed(int64(seed))
+	random_gen := rand.New(rand.NewSource(int64(seed)))
 
 	centers := make([][]float64, n_clusters)
 	for i := 0; i < n_clusters; i++ {
 		centers[i] = make([]float64, n_features)
 		for j := 0; j < n_features; j++ {
-			centers[i][j] = rand.Float64()
+			centers[i][j] = random_gen.Float64()
 		}
 	}
 	// log.Printf("centers = %#v\n", centers)
@@ -240,9 +241,9 @@ func (s *FCMeansServer) Process_server(round_mail_box string, experiment string,
 	log.Printf("Starting process_server ...")
 	// log.Printf("round_mail_box = %#v, experiment = %#v, config_file = %#v, client_responses = %#v\n", round_mail_box, experiment, config_file, client_responses)
 
-	rand.Seed(time.Now().UnixNano())
-	const low = 2
-	const high = 4
+	// rand.Seed(time.Now().UnixNano())
+	// const low = 2
+	// const high = 4
 	// time_to_sleep := low + rand.Float64()*(high-low)
 	// time.Sleep(time.Duration(time_to_sleep) * time.Second)
 
