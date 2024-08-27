@@ -6,7 +6,7 @@
 # Function to clean up tmux session and Docker containers
 cleanup() {
   tmux kill-session -t fedlang_containers
-  docker kill $(docker ps -a -q) 
+  docker kill $(docker ps -a -q)
 }
 
 # Trap the EXIT signal to ensure cleanup is run when the script exits
@@ -24,6 +24,7 @@ for i in `seq 0 $[$1-1]`; do
   # Split the window horizontally and run the client container
   tmux split-window -h
   tmux send-keys "docker run -v .:/app/fedlang -it --rm --network=fednet -e FL_CLIENT_ID=$i -e FL_DIRECTOR_IP=172.19.0.2 fedlang bash -c 'pipenv run sh start_client.sh'" C-m
+  sleep 0.1
 done
 sleep 2
 
