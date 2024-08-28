@@ -26,7 +26,7 @@ for i in `seq 0 $[$1-1]`; do
   tmux send-keys "docker run -v .:/app/fedlang -it --rm --network=fednet -e FL_CLIENT_ID=$i -e FL_DIRECTOR_IP=172.19.0.2 fedlang bash -c 'pipenv run sh start_client.sh'" C-m
   sleep 0.1
 done
-sleep 2
+sleep 1
 
 # Split the original pane vertically and run the server container
 tmux split-window -v
