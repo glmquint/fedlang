@@ -45,7 +45,9 @@ cd /app
 git clone --depth=1 https://github.com/glmquint/fedlang.git
 cd /app/fedlang
 git clone --depth=1 https://github.com/Pyrlang/Pyrlang.git && git clone --depth=1 https://github.com/Pyrlang/Term.git
-# Set the working directory
+
+# !!!!! Remove tensorflow from the requirements !!!!!
+sed -i "13d" Pipfile
 
 # Install dependencies with pipenv
 pipenv -v install
