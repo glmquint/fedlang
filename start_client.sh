@@ -22,7 +22,7 @@ cd $PROJECT_PATH/src/erlang_client
 erlc *.erl
 echo "Starting client $FL_CLIENT_ID"
 eval "export FL_CLIENT_MBOX=node_client$FL_CLIENT_ID"
-eval "export FL_CLIENT_NAME=client$i@$FL_CLIENT_IP"
+eval "export FL_CLIENT_NAME=client$FL_CLIENT_ID@$FL_CLIENT_IP"
 eval 'export METRIC_FILE="$PROJECT_PATH/stats/memory_by_method_col_${FL_CLIENT_ID}_${RUN}.log"'
 eval "export FL_CLIENT_CONFIG_DIR=$PROJECT_PATH/configs/client$FL_CLIENT_ID"
 erl -connect_all -name $FL_CLIENT_NAME -setcookie $FL_COOKIE -noshell -s client main -kernel prevent_overlapping_partitions false -kernel net_ticktime 240
