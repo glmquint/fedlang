@@ -1,10 +1,51 @@
 \chapter{Code organization}
 The code we developed is organized as follows:
 \begin{itemize}
-\item \textbf{FedlangProcess} contains core functionalities both for the client and the server. It provides support for all communications 
-between nodes the middleware.
-\item \textbf{fcmeans\_client} contains the client component of Fedlang, which is responsible for executing the steps of the federated learning algoritm.
-\item \textbf{fcmeans\_server} contains the server component of Fedlang, which is responsible for aggregating the results coming from the clients.
+\item \textbf{FedlangProcess.go} contains core functionalities both for the client and the server. It provides support for all communications 
+between nodes and the middleware.
+\item \textbf{fcmeans\_client.go} contains the client component of Fedlang, which is responsible for executing the steps of the federated learning algoritm.
+\item \textbf{fcmeans\_server.go} contains the server component of Fedlang, which is responsible for aggregating the results coming from the clients.
 \end{itemize}
 
+\section{FedlangProcess}
+A specialization of the \texttt{FedlangProcess} struct must be instantiated using the generic method 
+\begin{verbatim}
+func StartProcess[T any](
+	go_node_id, 
+	erl_cookie, 
+	erl_client_name, 
+	erl_worker_mailbox, 
+	experiment_id string)
+\end{verbatim}
+where:
+\begin{itemize}
+	\item \texttt{go\_node\_id} is the identifier of the Go node.
+	\item \texttt{erl\_cookie} is the Erlang cookie.
+	\item \texttt{erl\_client\_name} is the name of the Erlang worker node.
+	\item \texttt{erl\_worker\_mailbox} is the name of the Erlang worker mailbox.
+	\item \texttt{experiment\_id} is the identifier of the experiment.
+	\item \texttt{T} is the struct containing information about the server or the client of the distributed algorithm 
+\end{itemize}
+
+Both Client and Server must implement some methods that will be called by the middleware. Those methods should be exported by the package developed by the algorithm programmer (i.e. make them Capitalized). This allows the FedlangProcess to view and call them.
+
+All methods called by the FedlangProcess can have a variading number of parameters and always contain as the last parameter a copy of the FedlangProcess that called them. This is useful if the programmer wants to use some advanced functionality offered by the FedlangProcess, like a peer to peer communication between nodes during the experiment execution.
+
+If a method that is invoked by the FedlangProcess returns an \texttt{etf.Term} object, the FedlangProcess will send it to the Erlang node that called the method.
+
+\section{Client}
+The client must implement the following methods:
+\begin{itemize}
+	\item \texttt{Init\_client} initializes the client, taking an encoded json string as configuration.
+	\item \texttt{Process\_client} executes one step of the federated learning algorithm. Takes as input the experiment id string, the current round number and the encoding of the current centers.
+	\item \texttt{Destroy} is called when the experiment is over. It can be used to free resources. Generally kills the computing node.
+\end{itemize}
+
+\section{Server}
+The server must implement the following methods:
+\begin{itemize}
+	\item \texttt{Init\_server} initializes the server, taking an encoded json string as configuration.
+	\item \texttt{Process\_server} aggregates the results coming from the clients. Takes as input the experiment id string, the current round number and the encoding of the results.
+	\item \texttt{Destroy} is called when the experiment is over. It can be used to free resources. Generally kills the computing node.
+\end{itemize}
 
