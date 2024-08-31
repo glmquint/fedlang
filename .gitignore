@@ -165,3 +165,13 @@ src/erlang_client/output*
 src/go/server/fcmeans_server
 src/go/client/fcmeans_client
 *.prof
+*.DS_Store
+*.aux
+*.log
+*.bak
+*.toc
+*.gz
+*.out
+documentation/*.pdf
+*.fls
+*.fdb_latexmk
