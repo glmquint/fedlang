@@ -49,3 +49,9 @@ The server must implement the following methods:
 	\item \texttt{Destroy} is called when the experiment is over. It can be used to free resources. Generally kills the computing node.
 \end{itemize}
 
+\section{Erlang}
+The already existent Erlang code has been modified to allow the use of different programming languages for distributed algorithms development. 
+Many hardcoded variables and functions now accept the \texttt{CodeLanguage} atom that is passed as an argument to switch only the relevant piece of code necessary for the different implementations. 
+Other than that, the only improvements to the middleware API are the addition of a new message \texttt{fl\_worker\_result\_ack} that can be returned by the worker instead of the classic \texttt{fl\_worker\_result}.
+This new message allows the \texttt{StrategyServer} to keep track of the workers that correctly elaborated their result but didn't send them immediately.
+This in turns allows the algorithm developer to defer the sending of the results to the server to a later time, for example after the aggregation of all the results in a peer to peer fashion.
