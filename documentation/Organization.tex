@@ -31,7 +31,7 @@ Both Client and Server must implement some methods that will be called by the mi
 
 All methods called by the FedlangProcess can have a variading number of parameters and always contain as the last parameter a copy of the FedlangProcess that called them. This is useful if the programmer wants to use some advanced functionality offered by the FedlangProcess, like a peer to peer communication between nodes during the experiment execution.
 
-If a method that is invoked by the FedlangProcess returns an \texttt{etf.Term} object, the FedlangProcess will send it to the Erlang node that called the method.
+If a method that is invoked by the FedlangProcess returns an \texttt{etf.Term} object, the FedlangProcess will send it to the Erlang node that called the method. This allows for a more opaque interaction between the distributed algorithm and the middleware, as it doesn't require the developer to know about any communication detail.
 
 \section{Client}
 The client must implement the following methods:
