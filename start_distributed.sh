@@ -23,7 +23,7 @@ sleep 2
 for i in `seq 0 $[$1-1]`; do
   # Split the window horizontally and run the client container
   tmux split-window -h
-  tmux send-keys "docker run -v .:/app/fedlang -it --rm --network=fednet -e FL_CLIENT_ID=$i fedlang bash -c 'pipenv run sh start_client.sh'" C-m
+  tmux send-keys "docker run -v .:/app/fedlang -it --rm --network=fednet -e FL_CLIENT_ID=$i -e FL_DIRECTOR_IP=172.19.0.2 fedlang bash -c 'pipenv run sh start_client.sh'" C-m
 done
 sleep 2
 

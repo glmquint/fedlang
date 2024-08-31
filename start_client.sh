@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# expects FL_CLIENT_ID to be set
+# expects FL_CLIENT_ID and FL_DIRECTOR_IP to be set
 
 echo "Starting client"
 echo "FL_CLIENT_ID: $FL_CLIENT_ID"
@@ -8,7 +8,7 @@ echo "FL_CLIENT_ID: $FL_CLIENT_ID"
 export RUN=$(date '+%Y%m%d%H%M')
 export PROJECT_PATH="$PWD"
 export FL_SERVER_MBOX=mboxDirector
-export FL_SERVER_NAME=director@172.19.0.2
+export FL_SERVER_NAME=director@$FL_DIRECTOR_IP
 export ERLLIBDIR=$PROJECT_PATH/Pyrlang/py.erl
 export FL_CLIENT_LOG_FOLDER=$PROJECT_PATH/logs
 export PYTHONPATH=$PYTHONPATH:$PROJECT_PATH/src
