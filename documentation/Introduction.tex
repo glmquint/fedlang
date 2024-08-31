@@ -1,0 +1,13 @@
+\chapter{Introduction}
+Fedlang is a research project of the University of Pisa, which aims to provide a platform for federated learning experiments:
+the middleware of Fedlang is written in Erlang and client and server components are written in Python.
+The goal of this project is to port the existing client and server components of Fedlang in Golang, particularly focusing on the federated c-means algorithm.
+to prove that the Go language can be used as an alternative to Python for the development of a federated learning platform.
+
+\section{Development phases}
+We started the project by studying the existing codebase of Fedlang, to understand the architecture and the functionalities of the system; for this purpose a Docker image was built to reproduce the environment of the system and to avoid any compatibility issues.\\ We run multiple tests to ensure that the system was working correctly and to understand how the middleware interacts with the client and the server.\\ The first problem was to find a library in Go that could replace PyErlang, which is used in the original system to communicate with the middleware; we found Ergo library, that allows us to spawn Erlang nodes and communicate with existing Erlang nodes. For this reason, we implemented a simple ping-pong test in order to have a proof of concept of the communication between the Go client and the Erlang middleware, to ensure that we can achieve the same functionalities of the original system. After that, we started to port the server component of Fedlang in Go, also implementing the fedlang\_process class. \\ At this point we had hybrid system, where the server was written in Go and the client in Python. We then completed the porting of the client in Go: this allows us to change the serialization protocol and 
+to finally tweak both client and server with goroutines and go channels.
+Finally, we tested the system to ensure that the porting was successful and that the system was working correctly, for this scenario we used a docker network and multiple containers 
+for each service to mimic a fully distributed environment.
+We then started the development of the new communication protocol, to map a ring topology in the existing middleware, built instead for a star topology.
+After adding the functionalities to both middleware and client/server we recreated the same environment on the containers provided by the university. 

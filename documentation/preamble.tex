@@ -1,0 +1,128 @@
+\documentclass[a4paper, openright]{report}
+% Dimensione dei margini
+\usepackage[a4paper,top=2cm,bottom=2cm,left=2cm,right=2cm]{geometry} 
+% Dimensione del font
+\usepackage[fontsize=11pt]{scrextend}
+% Lingua del testo
+\usepackage[english]{babel}
+
+% Codifica del testo
+\usepackage[utf8]{inputenc}
+% Encoding del testo
+\usepackage[T1]{fontenc}
+% Per ruotare le immagini
+\usepackage{rotating}
+% Per modificare l'header delle pagine 
+\usepackage{fancyhdr}  
+
+\usepackage{CJKutf8}
+\usepackage{tabularx} 
+\usepackage{longtable} 
+\usepackage{seqsplit}        
+% Librerie matematiche
+
+
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}         
+
+% Uso delle immagini
+\usepackage{graphicx}
+% Uso dei colori
+\usepackage[dvipsnames,table,xcdraw]{xcolor}         
+% Uso dei listing per il codice
+\usepackage{listings}          
+% Per inserire gli hyperlinks tra i vari elementi del testo 
+\usepackage{hyperref}     
+% Diversi tipi di sottolineature
+\usepackage[normalem]{ulem}
+
+\usepackage{blindtext}
+\usepackage{titlesec}
+\usepackage{ragged2e}
+\usepackage{import}
+\graphicspath{{./../../../}}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\definecolor{delim}{RGB}{20,105,176}
+\definecolor{numb}{RGB}{106, 109, 32}
+\definecolor{string}{rgb}{0.64,0.08,0.08}
+
+\usepackage{xr}
+\newcommand{\cref}[1]{(Appendix \ref{#1})}
+
+
+% Stile del codice
+\lstdefinestyle{codeStyle}{
+    % Colore dei commenti
+    commentstyle=\color{teal},
+    % Colore delle keyword
+    keywordstyle=\color{Magenta},
+    % Stile dei numeri di riga
+    numberstyle=\tiny\color{gray},
+    % Colore delle stringhe
+    stringstyle=\color{violet},
+    % Dimensione e stile del testo
+    basicstyle=\ttfamily\footnotesize,
+    % newline solo ai whitespaces
+    breakatwhitespace=false,     
+    % newline si/no
+    breaklines=true,                 
+    % Posizione della caption, top/bottom 
+    captionpos=b,                    
+    % Mantiene gli spazi nel codice, utile per l'indentazione
+    keepspaces=true,                 
+    % Dove visualizzare i numeri di linea
+    numbers=left,                    
+    % Distanza tra i numeri di linea
+    numbersep=5pt,                  
+    % Mostra gli spazi bianchi o meno
+    showspaces=false,                
+    % Mostra gli spazi bianchi nelle stringhe
+    showstringspaces=false,
+    % Mostra i tab
+    showtabs=false,
+    % Dimensione dei tab
+    tabsize=2
+} \lstset{style=codeStyle}
+
+
+\newcounter{alphasect}
+\def\alphainsection{0}
+
+\let\oldsection=\section
+\def\section{%
+  \ifnum\alphainsection=1%
+    \addtocounter{alphasect}{1}
+  \fi%
+\oldsection}%
+
+\renewcommand\thesection{%
+  \ifnum\alphainsection=1% 
+    \Alph{alphasect}
+  \else%
+    \arabic{section}
+  \fi%
+}%
+
+\newenvironment{alphasection}{%
+  \ifnum\alphainsection=1%
+    \errhelp={Let other blocks end at the beginning of the next block.}
+    \errmessage{Nested Alpha section not allowed}
+  \fi%
+  \setcounter{alphasect}{0}
+  \def\alphainsection{1}
+}{%
+  \setcounter{alphasect}{0}
+  \def\alphainsection{0}
+}
+
+
+\usepackage{listings}
+\usepackage{xurl}
+\usepackage{hyperref}
+\usepackage{multirow}
+\usepackage[normalem]{ulem}
+\useunder{\uline}{\ul}{}
