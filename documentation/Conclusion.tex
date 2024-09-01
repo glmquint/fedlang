@@ -1,10 +1,19 @@
 \chapter{Conclusion}
-The project of porting the Fedlang framework from Python to Go has proven to be a valuable endeavor, not only in achieving the primary objective of demonstrating Go's viability for federated learning systems but also in expanding the framework's capabilities. The transition to Go has resulted in a system that is more efficient, scalable, and easier to maintain, thanks to Go's concurrency model, efficient memory management, and faster serialization protocols.
+\section{Performances}
+After completing the translation of the fuzzy c-means algorithm into Go, we investigated the overall perceived slowdown of the application. 
+
+Using the standard Go profiler, pprof, and the CLI tool \texttt{go tool pprof}, we observed that both the server and client components were slowed down by the `number crunching' operations required by the clustering algorithm. 
+
+Although the final project efficiently utilizes goroutines to maximize the use of available hardware, it was necessary to manually implement many arithmetic operations that are otherwise already provided by specialized libraries in Python. 
+We believe this to be the primary source of the slowdown, in addition to the use of the Ergo framework for communication with the Erlang middleware, which has less support compared to the more widely known Pyerlang. 
+
+This is reflected by the fact that Python is more suitable for tasks related to machine learning, given its long history of optimized libraries specifically designed to support this domain.
+\section{Future Work}
+
+The project of porting the Fedlang framework from Python to Go has proven to be a valuable endeavor, not only in achieving the primary objective of demonstrating Go's viability for federated learning systems but also in expanding the framework's capabilities. 
 
 Throughout the development process, the challenges of finding suitable libraries and ensuring seamless communication between the Go components and the existing Erlang middleware were successfully addressed. The use of the Ergo framework and the development of hybrid systems allowed for a smooth transition and ensured that the core functionalities of the original system were preserved and enhanced.
 
-The introduction of a ring topology for distributed aggregation represents a significant improvement over the previous architecture. It not only reduces the communication bottleneck that can occur in traditional client-server setups but also opens up new possibilities for distributed algorithm developers to implement custom topologies that better suit their needs.
+The introduction of a ring topology for distributed aggregation represents a viable alternative over the previous architecture. It not only reduces the communication bottleneck that can occur in traditional client-server setups but also opens up new possibilities for distributed algorithm developers to implement custom topologies that better suit their needs.
 
-In conclusion, this project has laid a strong foundation for the future development of federated learning systems in Go. It has demonstrated that Go is not only a suitable alternative to Python but can also offer distinct advantages in terms of performance and scalability. The successful porting of the Fedlang framework serves as a valuable reference for future projects aiming to leverage the strengths of Go in distributed systems and middleware technologies.
-
-
+In conclusion, future work should focus on further enhancing the libraries supporting machine learning operations and improving communication performance within federated learning environments. These advancements would significantly bolster Go's potential in this domain, enabling the development of more efficient and scalable systems. Additionally, fostering greater support and optimization for frameworks like Ergo could contribute to smoother integration and more robust communication in hybrid architectures. Such efforts will be crucial in solidifying Go's place in the evolving landscape of machine learning and distributed computing.

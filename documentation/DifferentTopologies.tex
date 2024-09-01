@@ -2,7 +2,7 @@
 
 The original middleware implementation assumed a strict separation of roles between nodes. Each worker would execute independetly and communicate only with the director node, which in turn would aggregate all responses coming from workers.
 
-Even if this solution is simple to implement, it leads to synchronized moments where the communication bandwidth is entirely occupied by results coming from all clients (with each usually containing large amount of computed data). To reduce this phenomenon, which worsen with the number of connected clinets, we would like for the workers to perform part of the aggregation, easing the workload for the server. 
+Even if this solution is simple to implement, it leads to synchronized moments where the communication bandwidth is entirely occupied by results coming from all clients (with each usually containing large amount of computed data). To reduce this phenomenon, which worsen with the number of connected clients, we would like for the workers to perform part of the aggregation, easing the workload for the server. 
 
 Distributed algorithm developers might then need for a custom topology for organizing peer to peer communication.
 
@@ -19,9 +19,9 @@ To allow peer to peer communication, the \texttt{FedlangProcess} implements a \t
 
 The first argument is a function which will be called to select the next node in the ring, given the current node id and the total number of peers in the network. The second argument is the actual message that needs to be sent.
 
-The information of how many nodes are in the network shouldn't be considered a constant. The number of nodes can change during the execution of the algorithm, as nodes can join or leave the network at any time. To mantain the ring topology, therefore, the programmer should describe the next node in the ring as a parametric function of just these two arguments: the current node id and the total number of nodes in the network
+The information of how many nodes are in the network shouldn't be considered a constant. The number of nodes can change during the execution of the algorithm, as nodes can join or leave the network at any time. To mantain the ring topology, therefore, the programmer should describe the next node in the ring as a parametric function of just these two unkowns: the current node id and the total number of nodes in the network
 
 The update of the network topology is managed by the middleware, which will call the \texttt{Update\_graph} method with the updated number of nodes in the network.
-To mantain backward compatibility with the existing python algorithms implementation, the update network event is asynchronous, i.e. it doesn't require an aknowledgement from the clients.
+To mantain backward compatibility with the existing python algorithms implementation, the update network event is non-blocking, i.e. it doesn't require an aknowledgement from the clients.
 
 The \texttt{PeerSend} method doesn't return the result of the operation. If the message cannot be sent (for example, if we requested to send a message before any network update has been managed), the message gets cached by the \texttt{FedlangProcess} and a new sending attempt will be made after all subsequent network update events.

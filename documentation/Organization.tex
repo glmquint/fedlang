@@ -2,7 +2,7 @@
 The code we developed is organized as follows:
 \begin{itemize}
 \item \textbf{FedlangProcess.go} contains core functionalities both for the client and the server. It provides support for all communications 
-between nodes and the middleware.
+between nodes and middleware.
 \item \textbf{fcmeans\_client.go} contains the client component of Fedlang, which is responsible for executing the steps of the federated learning algoritm.
 \item \textbf{fcmeans\_server.go} contains the server component of Fedlang, which is responsible for aggregating the results coming from the clients.
 \end{itemize}
@@ -24,7 +24,7 @@ where:
 	\item \texttt{erl\_client\_name} is the name of the Erlang worker node.
 	\item \texttt{erl\_worker\_mailbox} is the name of the Erlang worker mailbox.
 	\item \texttt{experiment\_id} is the identifier of the experiment.
-	\item \texttt{T} is the struct containing information about the server or the client of the distributed algorithm 
+	\item \texttt{T} is the type of the struct containing information about the server or the client of the distributed algorithm 
 \end{itemize}
 
 Both Client and Server must implement some methods that will be called by the middleware. Those methods should be exported by the package developed by the algorithm programmer (i.e. make them Capitalized). This allows the FedlangProcess to view and call them.
