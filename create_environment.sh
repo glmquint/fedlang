@@ -42,7 +42,7 @@ pip3 install pyopenssl setuptools-rust semantic_version pipenv
 # Copy the project files to the desired location
 mkdir -p /app
 cd /app
-git clone --depth=1 https://github.com/glmquint/fedlang.git
+git clone https://github.com/glmquint/fedlang.git
 cd /app/fedlang
 git clone --depth=1 https://github.com/Pyrlang/Pyrlang.git && git clone --depth=1 https://github.com/Pyrlang/Term.git
 
@@ -68,4 +68,4 @@ pipenv run pip install .
 
 # Move back to the main directory and make the start.sh script executable
 cd /app/fedlang/
-chmod +x start.sh
+mkdir logs stats
