@@ -172,6 +172,5 @@ src/go/client/fcmeans_client
 *.toc
 *.gz
 *.out
-documentation/*.pdf
 *.fls
 *.fdb_latexmk
